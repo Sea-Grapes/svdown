@@ -26,13 +26,13 @@ export class SvmdParser {
 
     const parse = unified()
       .use(toMdast)
-      .use(astLog)
+      .use(astLog())
       .use(mdastRestoreLogic, logic)
       .use(mdastToHast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
       })
-      .use(astLog)
+      .use(astLog())
       .use(hastToString, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -58,10 +58,12 @@ export async function parse(
   return res
 }
 
-function astLog() {
-  return (tree: any) => {
-    console.log('astLog')
-    console.dir(tree, { depth: null })
+const astLog = () => {
+  return () => {
+    return (tree: any) => {
+      console.log('astLog')
+      console.dir(tree, { depth: null })
+    }
   }
 }
 

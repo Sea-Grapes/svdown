@@ -7,6 +7,7 @@ import { findBracket } from './bracket'
 
 import { SKIP, visit } from 'unist-util-visit'
 import type { Paragraph, Root, Text } from 'mdast'
+import { astInspect } from './util'
 
 export class SvmdParser {
   config: PluginConfig
@@ -26,13 +27,13 @@ export class SvmdParser {
 
     const parse = unified()
       .use(toMdast)
-      .use(astLog())
+      .use(astInspect())
       .use(mdastRestoreLogic, logic)
       .use(mdastToHast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
       })
-      .use(astLog())
+      .use(astInspect())
       .use(hastToString, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -56,15 +57,6 @@ export async function parse(
   const parser = new SvmdParser(config)
   let res = await parser.parse(content, filename)
   return res
-}
-
-const astLog = () => {
-  return () => {
-    return (tree: any) => {
-      console.log('astLog')
-      console.dir(tree, { depth: null })
-    }
-  }
 }
 
 function mdastRestoreLogic(logic: string[]) {

@@ -431,7 +431,13 @@ Refining:
   - could also use a micromark extension for this instead (todo evaluate utility of this) but it's a bit more lockin (can't be reused elsewhere), a bit harder to understand. Does have benefit of not needing placeholders. Also I think micromark has issues with inline and stuff not becoming parent ast nodes and then it turns into ast splitting and it is basically impossible.
 
 
-  # Progress check
-  - current idea in progress. Implemented logic blocks correctly, likely working (possible logic errors in bracket matcher though).
-  Next need to:
-  - figure out what happens when svelteified html is parsed. Does it become text?
+# Progress check
+- current idea in progress. Implemented logic blocks correctly, likely working (possible logic errors in bracket matcher though).
+Next need to:
+- figure out what happens when svelteified html is parsed. Does it become text?
+
+Possible ways to fix html:
+- find <html> things with brackets in between. Then bracket match?
+- if we don't care about newlines in js - could just look at text nodes in hast 
+
+- could entirely remove any html with svelte attrs (just make it raw text)

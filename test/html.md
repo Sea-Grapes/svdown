@@ -1,7 +1,4 @@
 <button
 onclick={()=> {
-
 increment()
-}}
-
-> Click me</button>
+}}> Click me</button>

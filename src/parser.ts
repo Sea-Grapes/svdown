@@ -64,8 +64,7 @@ function escapeSvelteLogic(str: string) {
   let logic: string[] = []
 
   matches.forEach((start) => {
-    let end = findBracket(str, start)
-    end++
+    let end = findBracket(str, start) + 1
     console.log(`match from ${start}, ${end}`)
     logic.push(str.slice(start, end))
     str = replaceStr(str, start, end, `\n+svmd0+\n`)

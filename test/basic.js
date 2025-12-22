@@ -1,4 +1,4 @@
-import { parse } from '../dist/index.js'
+import { parse } from '../dist/index.mjs'
 import fs from 'fs'
 import path from 'path'
 

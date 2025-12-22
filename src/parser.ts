@@ -5,6 +5,9 @@ import mdastToHast from 'remark-rehype'
 import hastToString from 'rehype-stringify'
 import { findBracket } from './bracket'
 
+import { SKIP, visit } from 'unist-util-visit'
+import type { Paragraph, Root, Text } from 'mdast'
+
 export class SvmdParser {
   config: PluginConfig
 
@@ -23,6 +26,7 @@ export class SvmdParser {
     const parse = unified()
       .use(toMdast)
       // .use(mdastLog)
+      .use(mdastRestoreLogic, logic)
       .use(mdastToHast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -55,19 +59,49 @@ function mdastLog() {
   }
 }
 
+function mdastRestoreLogic(logic: string[]) {
+  console.log('restoring logic')
+  let i = 0
+
+  return (tree: Root) => {
+    visit(tree, 'paragraph', (node: Paragraph, index, parent) => {
+      const first = node.children[0]
+
+      if (
+        node.children.length === 1 &&
+        first &&
+        first.type === 'text' &&
+        first.value.trim() === '+svmd0+' &&
+        parent &&
+        index
+      ) {
+        // Replace the entire paragraph with the restored logic
+        parent.children[index] = {
+          type: 'html',
+          value: logic[i] || '',
+        }
+        i++
+        return SKIP
+      }
+    })
+  }
+}
+
 const logic_start = /{[@#:/][a-z]+/g
 
 function escapeSvelteLogic(str: string) {
-  const matches = Array.from(str.matchAll(logic_start)).map((m) => m.index)
+  const matches = Array.from(str.matchAll(logic_start))
+    .map((m) => m.index)
+    .reverse()
   console.log(`found ${matches.length} matches`)
 
   let logic: string[] = []
 
   matches.forEach((start) => {
-    let end = findBracket(str, start) + 1
+    let end = findBracket(str, start)
     console.log(`match from ${start}, ${end}`)
-    logic.push(str.slice(start, end))
-    str = replaceStr(str, start, end, `\n+svmd0+\n`)
+    logic.unshift(str.slice(start, end + 1))
+    str = replaceStr(str, start, end + 1, `\n+svmd0+\n`)
   })
 
   return { str, logic }

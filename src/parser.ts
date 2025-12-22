@@ -66,15 +66,16 @@ function mdastRestoreLogic(logic: string[]) {
   return (tree: Root) => {
     visit(tree, 'paragraph', (node: Paragraph, index, parent) => {
       const first = node.children[0]
+      // console.log(node)
 
       if (
-        node.children.length === 1 &&
         first &&
-        first.type === 'text' &&
-        first.value.trim() === '+svmd0+' &&
+        first.type == 'text' &&
+        first.value.trim() == '+svmd0+' &&
         parent &&
-        index
+        index != null
       ) {
+        console.log('replacing')
         // Replace the entire paragraph with the restored logic
         parent.children[index] = {
           type: 'html',
@@ -84,6 +85,8 @@ function mdastRestoreLogic(logic: string[]) {
         return SKIP
       }
     })
+
+    console.log(tree)
   }
 }
 

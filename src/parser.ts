@@ -21,22 +21,27 @@ export class SvmdParser {
 
     content = str
 
+    console.log('start str:')
     console.log(content)
 
     const parse = unified()
       .use(toMdast)
-      // .use(mdastLog)
+      .use(astLog)
       .use(mdastRestoreLogic, logic)
       .use(mdastToHast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
       })
+      .use(astLog)
       .use(hastToString, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
       })
 
     let res = String(parse.processSync(content))
+
+    console.log('Final str:')
+    console.log(res)
 
     return {
       code: res,
@@ -53,14 +58,14 @@ export async function parse(
   return res
 }
 
-function mdastLog() {
+function astLog() {
   return (tree: any) => {
+    console.log('astLog')
     console.dir(tree, { depth: null })
   }
 }
 
 function mdastRestoreLogic(logic: string[]) {
-  console.log('restoring logic')
   let i = 0
 
   return (tree: Root) => {
@@ -75,7 +80,6 @@ function mdastRestoreLogic(logic: string[]) {
         parent &&
         index != null
       ) {
-        console.log('replacing')
         // Replace the entire paragraph with the restored logic
         parent.children[index] = {
           type: 'html',
@@ -86,7 +90,7 @@ function mdastRestoreLogic(logic: string[]) {
       }
     })
 
-    console.log(tree)
+    // console.log(tree)
   }
 }
 
@@ -96,13 +100,13 @@ function escapeSvelteLogic(str: string) {
   const matches = Array.from(str.matchAll(logic_start))
     .map((m) => m.index)
     .reverse()
-  console.log(`found ${matches.length} matches`)
+  // console.log(`found ${matches.length} matches`)
 
   let logic: string[] = []
 
   matches.forEach((start) => {
     let end = findBracket(str, start)
-    console.log(`match from ${start}, ${end}`)
+    // console.log(`match from ${start}, ${end}`)
     logic.unshift(str.slice(start, end + 1))
     str = replaceStr(str, start, end + 1, `\n+svmd0+\n`)
   })

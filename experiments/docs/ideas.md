@@ -429,3 +429,9 @@ Refining:
   - Then give this a placeholder (can just be the same placeholder string like `+svmd0+`) that becomes a separate paragraph in ast (using newlines). Then the ast node can have its type changed and text replaced.
   - the reason to do this way is because if I just found it in the ast instead, it can easily miss parts. Like if a {#if} block has multiple lines (possibly with empty lines) it will become separate paragraphs. We need to fix it first.
   - could also use a micromark extension for this instead (todo evaluate utility of this) but it's a bit more lockin (can't be reused elsewhere), a bit harder to understand. Does have benefit of not needing placeholders. Also I think micromark has issues with inline and stuff not becoming parent ast nodes and then it turns into ast splitting and it is basically impossible.
+
+
+  # Progress check
+  - current idea in progress. Implemented logic blocks correctly, likely working (possible logic errors in bracket matcher though).
+  Next need to:
+  - figure out what happens when svelteified html is parsed. Does it become text?

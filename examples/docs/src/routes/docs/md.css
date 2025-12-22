@@ -1,0 +1,60 @@
+@reference 'tailwindcss';
+
+.custom {
+  > * + * {
+    margin-top: 1em;
+  }
+
+  line-height: 1.7;
+  font-size: 16.5px;
+  text-wrap: pretty;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply font-medium tracking-tight text-balance;
+    margin-block-start: 2em;
+  }
+
+  h1 {
+    @apply text-2xl pt-4 border-t border-zinc-200 mt-16;
+  }
+
+  a {
+    @apply text-indigo-400 font-medium underline;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+
+  p {
+    /* @apply text-slate-700; */
+    @apply text-pretty;
+  }
+
+  pre:has(> code) {
+    @apply px-5 py-4 rounded-md text-sm bg-zinc-100! overflow-x-auto;
+  }
+
+  code:not(pre > code) {
+    font-size: 14px;
+    padding: 3px 6px;
+    @apply bg-zinc-100 rounded-sm;
+  }
+
+  ul,
+  ol {
+    @apply pl-[3ch] space-y-1 marker:text-zinc-500;
+  }
+
+  ol {
+    @apply list-decimal;
+  }
+
+  ul {
+    @apply list-disc marker:text-zinc-400;
+  }
+}

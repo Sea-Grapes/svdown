@@ -441,3 +441,53 @@ Possible ways to fix html:
 - if we don't care about newlines in js - could just look at text nodes in hast 
 
 - could entirely remove any html with svelte attrs (just make it raw text)
+
+Ways to fix js attrs {count}
+- "I guess I could use bracket matching and just prevent all bracket pairs from ever being split across paragraphs/nodes. Not sure how to do that"
+
+Interesting approach, not sure if it works
+```js
+function protectBracketPairs(str: string): string {
+  let i = 0
+  let result = ''
+  
+  while (i < str.length) {
+    if (str[i] === '{') {
+      const start = i
+      const end = findBracket(str, start)
+      
+      if (end !== -1) {
+        const bracketContent = str.slice(start, end + 1)
+        
+        // Encode it to prevent markdown from processing it
+        const encoded = Buffer.from(bracketContent).toString('base64')
+        result += `<!--svmd-bracket:${encoded}-->`
+        i = end + 1
+        continue
+      }
+    }
+    result += str[i]
+    i++
+  }
+  
+  return result
+}
+
+// After processing, decode in the final HTML string
+function restoreBrackets(html: string): string {
+  return html.replace(/<!--svmd-bracket:([^>]+)-->/g, (_, encoded) => {
+    return Buffer.from(encoded, 'base64').toString('utf-8')
+  })
+}
+```
+
+
+# Thinking continued
+
+Surely there's a smart way to do this.
+- logic blocks: easiest, simply regex the thing and bracket match
+- html with svelte things `{@attach}` or `onclick={()=>{}}` not sure
+- js values not sure
+
+I think a smart thing to do is: make all bracket pairs {} always end up in the same paragraph/node (if the internal string is not blank)
+- for js values - if they're in the same paragraph->text node, then things like latex surely become a different thing in mdast (or hast). 

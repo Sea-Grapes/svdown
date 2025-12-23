@@ -70,7 +70,7 @@ function mdastRestoreLogic(logic: string[]) {
       if (
         first &&
         first.type == 'text' &&
-        first.value.trim() == '+svmd0+' &&
+        first.value.trim() == 'svmd0' &&
         parent &&
         index != null
       ) {
@@ -102,7 +102,7 @@ function escapeSvelteLogic(str: string) {
     let end = findBracket(str, start)
     // console.log(`match from ${start}, ${end}`)
     logic.unshift(str.slice(start, end + 1))
-    str = replaceStr(str, start, end + 1, `\n+svmd0+\n`)
+    str = replaceStr(str, start, end + 1, `svmd0`)
   })
 
   return { str, logic }

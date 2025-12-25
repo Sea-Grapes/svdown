@@ -412,53 +412,60 @@ Steps:
 # Reanalyze
 
 If I just parse svelte+md syntax with a md parser it breaks only a few things:
+
 1. logic blocks on separate lines may get wrapped in p's, breaking svelte when it tries to render.
 2. Js expressions on html elements, or in text content, and probably other things can get escaped as html entities because they are illegal html.
 
 How these can be prevented:
-1. put logic blocks all on separate lines, then swap the ast node type.
-  - possibly use bracket matching to find actual correct logic block start/end tag positions. the start and end tags can be in separate p's, it's just for 100% compliance the start tag needs bracket matching.
-2.
-  - js attributes in text: not sure how to detect this. Maybe there is a way to prevent escaping of these characters, such as disabling global escape and only escaping in scoped areas like code blocks
-  - or maybe visit text nodes in md and escape them! surely that'll work? (they can be placeholded here, then restored after stringify?) Because surely the latex nodes will be different?
-  - js attributes in html - also unsure, maybe similar story with text nodes.
 
+1. put logic blocks all on separate lines, then swap the ast node type.
+
+- possibly use bracket matching to find actual correct logic block start/end tag positions. the start and end tags can be in separate p's, it's just for 100% compliance the start tag needs bracket matching.
+
+2.  - js attributes in text: not sure how to detect this. Maybe there is a way to prevent escaping of these characters, such as disabling global escape and only escaping in scoped areas like code blocks
+    - or maybe visit text nodes in md and escape them! surely that'll work? (they can be placeholded here, then restored after stringify?) Because surely the latex nodes will be different?
+    - js attributes in html - also unsure, maybe similar story with text nodes.
 
 Refining:
-1. I think the working approach would be to start with the string, and search for all logic tags. so search for things with the pattern `{#word`, then run svelte's bracket match to find the end of it.
-  - Then give this a placeholder (can just be the same placeholder string like `+svmd0+`) that becomes a separate paragraph in ast (using newlines). Then the ast node can have its type changed and text replaced.
-  - the reason to do this way is because if I just found it in the ast instead, it can easily miss parts. Like if a {#if} block has multiple lines (possibly with empty lines) it will become separate paragraphs. We need to fix it first.
-  - could also use a micromark extension for this instead (todo evaluate utility of this) but it's a bit more lockin (can't be reused elsewhere), a bit harder to understand. Does have benefit of not needing placeholders. Also I think micromark has issues with inline and stuff not becoming parent ast nodes and then it turns into ast splitting and it is basically impossible.
 
+1. I think the working approach would be to start with the string, and search for all logic tags. so search for things with the pattern `{#word`, then run svelte's bracket match to find the end of it.
+
+- Then give this a placeholder (can just be the same placeholder string like `+svmd0+`) that becomes a separate paragraph in ast (using newlines). Then the ast node can have its type changed and text replaced.
+- the reason to do this way is because if I just found it in the ast instead, it can easily miss parts. Like if a {#if} block has multiple lines (possibly with empty lines) it will become separate paragraphs. We need to fix it first.
+- could also use a micromark extension for this instead (todo evaluate utility of this) but it's a bit more lockin (can't be reused elsewhere), a bit harder to understand. Does have benefit of not needing placeholders. Also I think micromark has issues with inline and stuff not becoming parent ast nodes and then it turns into ast splitting and it is basically impossible.
 
 # Progress check
+
 - current idea in progress. Implemented logic blocks correctly, likely working (possible logic errors in bracket matcher though).
-Next need to:
+  Next need to:
 - figure out what happens when svelteified html is parsed. Does it become text?
 
 Possible ways to fix html:
+
 - find <html> things with brackets in between. Then bracket match?
-- if we don't care about newlines in js - could just look at text nodes in hast 
+- if we don't care about newlines in js - could just look at text nodes in hast
 
 - could entirely remove any html with svelte attrs (just make it raw text)
 
 Ways to fix js attrs {count}
+
 - "I guess I could use bracket matching and just prevent all bracket pairs from ever being split across paragraphs/nodes. Not sure how to do that"
 
 Interesting approach, not sure if it works
+
 ```js
 function protectBracketPairs(str: string): string {
   let i = 0
   let result = ''
-  
+
   while (i < str.length) {
     if (str[i] === '{') {
       const start = i
       const end = findBracket(str, start)
-      
+
       if (end !== -1) {
         const bracketContent = str.slice(start, end + 1)
-        
+
         // Encode it to prevent markdown from processing it
         const encoded = Buffer.from(bracketContent).toString('base64')
         result += `<!--svmd-bracket:${encoded}-->`
@@ -469,7 +476,7 @@ function protectBracketPairs(str: string): string {
     result += str[i]
     i++
   }
-  
+
   return result
 }
 
@@ -481,13 +488,88 @@ function restoreBrackets(html: string): string {
 }
 ```
 
+Another clever idea: removing all bracket things, interleaving with markdown results (this doesnt quite work)
+
+```js
+function extractBracketBlocks(content: string): {
+  blocks: Array<{ type: 'text' | 'bracket', content: string }>
+} {
+  const blocks = []
+  let i = 0
+  let textStart = 0
+
+  while (i < content.length) {
+    if (content[i] === '{') {
+      // Save preceding text
+      if (i > textStart) {
+        blocks.push({ type: 'text', content: content.slice(textStart, i) })
+      }
+
+      const end = findBracket(content, i)
+      if (end !== -1) {
+        blocks.push({
+          type: 'bracket',
+          content: content.slice(i, end + 1)
+        })
+        i = end + 1
+        textStart = i
+        continue
+      }
+    }
+    i++
+  }
+
+  if (textStart < content.length) {
+    blocks.push({ type: 'text', content: content.slice(textStart) })
+  }
+
+  return { blocks }
+}
+
+async parse(content: string): Promise<any> {
+  const { blocks } = extractBracketBlocks(content)
+
+  let result = ''
+  for (const block of blocks) {
+    if (block.type === 'bracket') {
+      result += block.content  // Pass through as-is
+    } else {
+      // Parse only the text portions as markdown
+      const parsed = await unified()
+        .use(toMdast)
+        .use(mdastToHast, { allowDangerousHtml: true })
+        .use(hastToString, { allowDangerousHtml: true })
+        .processSync(block.content)
+      result += String(parsed)
+    }
+  }
+
+  return { code: result }
+}
+```
 
 # Thinking continued
 
 Surely there's a smart way to do this.
+
 - logic blocks: easiest, simply regex the thing and bracket match
 - html with svelte things `{@attach}` or `onclick={()=>{}}` not sure
 - js values not sure
 
 I think a smart thing to do is: make all bracket pairs {} always end up in the same paragraph/node (if the internal string is not blank)
-- for js values - if they're in the same paragraph->text node, then things like latex surely become a different thing in mdast (or hast). 
+
+- for js values - if they're in the same paragraph->text node, then things like latex surely become a different thing in mdast (or hast).
+
+# Thinking continued
+
+Slop idea
+
+> Option 2 (Mark Ranges, Modify AST) is the most robust because:
+>
+> Zero modifications to source markdown
+> Works with any syntax (LaTeX, code, whatever)
+> Clean separation of concerns
+> You already have the bracket matcher
+>
+> The remark plugin would merge adjacent paragraph nodes that your bracket ranges span across. This is post-processing the AST rather than pre-processing the text.
+> Would you like me to flesh out the remark plugin for merging paragraphs based on protected ranges?

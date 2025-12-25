@@ -592,3 +592,40 @@ What if I do svelte parse first. instead of escaping code blocks or latex things
 - then parse svelte, and surely it works now right? Then you can insert them back based on the ast positions? (and update those numbers?)
 
 - then collect the text nodes, parse as markdown? (js logic will still be cooked, but latex, code will work w/ no escaping)
+
+# 2 possible approaches:
+
+1. escape logic blocks as comment placeholder using bracket matching (string preprocess)
+2. escape @attach as string placeholder using bracket matching (also string preprocess)
+3. issue: forgot about js attributes on html lol. Could combine with above: any brackets inside arrows <> that aren't in a string.. oof
+  - could maybe even wrap it in a string and it would be ok?? can arbitrary js be in an html str
+    - tested: this works pretty well but breaks on multiple lines
+
+# IDEA for solving js expressions
+
+- first escape all bracket matches into svmd0 string or whatever
+- then in mdast, replace them with actual string. *this makes the string in the same node like I wanted*.
+- then run plugins, remark-math, etc.
+- not sure how these transform.
+- maybe run remark-rehype, it should not escape things yet.
+- now any brackets leftover can be escaped theoretically. This will break writing normal text brackets but i think its ok
+
+For the rest of it:
+- possibly use bracket matching to do logic blocks
+
+# Full plan
+
+Things that break md:
+- custom els        <svelte:element>
+- js attrs          <html onclick={()=>{}}>
+- attach            <div {@attach}>
+- js expressions    {count > 5}
+- logic             {#each}
+
+Possible solutions:
+- somehow make html parsing looser so that the first 3 things aren't affected
+- logic can be placeholded w/ comments and restored by string
+
+- alternatively, use svelte parse (has some downsides)
+- js expressions possible solution:
+  - 

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Testbed</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+
+  <body class="p-4 bg-zinc-100 text-zinc-900">
+    <h1 class="text-2xl font-semibold mb-4">Testbed</h1>
+
+    <textarea
+      id="input"
+      class="outline-none border border-zinc-500 p-4 rounded-sm font-mono w-full"
+      rows="20"
+    >
+# Hello World</textarea
+    >
+
+    <script type="module">
+      import { unified } from 'https://esm.sh/unified@11'
+      import remarkParse from 'https://esm.sh/remark-parse@11'
+      import remarkRehype from 'https://esm.sh/remark-rehype@11'
+      import rehypeStringify from 'https://esm.sh/rehype-stringify@10'
+      import { visit } from 'https://esm.sh/unist-util-visit@5'
+
+      const input = document.getElementById('input')
+
+      input.addEventListener('change', (e) => {
+        parse()
+      })
+
+      window.parse = async function () {
+        console.clear()
+        console.log('parsing')
+        try {
+          // Create processor
+          const processor = unified()
+            .use(remarkParse)
+            .use(remarkRehype, {
+              allowDangerousHtml: true,
+            })
+            .use(rehypeStringify, {
+              allowDangerousCharacters: true,
+              closeSelfClosing: false,
+            })
+
+          // Parse to get AST
+          const ast = processor.parse(input.value)
+          console.log(ast)
+
+          // Process to HTML
+          const result = await processor.process(input.value)
+          const html = String(result)
+          console.log(html)
+        } catch (error) {
+          console.error(error)
+        }
+      }
+
+      // Parse on load
+      parse()
+    </script>
+  </body>
+</html>

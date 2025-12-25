@@ -638,7 +638,27 @@ Possible overall
 - restore all svmd placeholders in text nodes (now they are in the same node).
     - Possibly modify the ast to actually make it seperate node for convenience
 - call remark plugins (latex, etc)
-- 
+- maybe hide them again??
 
 
 tbh maybe it would be smarter to rely on svelte parse again and just do user defined escaping :/
+
+
+# Reevaluating
+
+- basically markdown should only touch actual text in svelte. So aside from the svelte syntax, there are markdown areas. And those areas can have anything in them. How do we do this?
+  - well the syntax highlighter is able to do this. Like if I put markdown in svelte file, it won't get screwed up.
+  - this is not true, things like code blocks definitely do get screwed up. or latex. (in the same sense as my parsing stuff)
+  
+So then clearly we have to use markdown first and make it avoid screwing up svelte
+- can we make it just leave bracket things alone? (If its not being used by like latex or smth)
+
+I guess the best way I can think of to integrate this w/ unified is the above approach:
+  - find bracket matcher pairs, replace them with +svmd or smth
+      - maybe call light mdast first and only find pairs in text? could help avoid code blocks
+  - remark-parse to get mdast
+  - restore svmd to original text (now in same node)
+  - call remark plugins
+  - placehold again
+  - call mdast-to-hast and hast-stringify
+  - restore placeholder (theoretically unbroken now)

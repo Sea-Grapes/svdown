@@ -128,6 +128,35 @@ This is a test with a **bold** word.
     import remarkParse from 'https://esm.sh/remark-parse@11'
     import remarkRehype from 'https://esm.sh/remark-rehype@11'
     import rehypeStringify from 'https://esm.sh/rehype-stringify@10'
+    import { visit } from 'https://esm.sh/unist-util-visit@5'
+
+    function remarkSvelte() {
+        return (tree) => {
+          visit(tree, 'html', (node, index, parent) => {
+            // Match opening svelte: tags
+            const match = node.value.match(/^<(svelte:\w+)(\s[^>]*)?>$/);
+            if (match) {
+              // Convert html node to a custom mdast node
+              node.type = 'svelteElement';
+              node.tagName = match[1];
+              node.attributes = match[2] || '';
+              node.children = [];
+            }
+
+            // Match closing svelte: tags
+            const closeMatch = node.value.match(/^<\/(svelte:\w+)>$/);
+            if (closeMatch) {
+              node.type = 'svelteElementClose';
+              node.tagName = closeMatch[1];
+            }
+          });
+        };
+      }
+
+         // Custom handler for remark-rehype
+          function svelteHandler(h, node) {
+            return h(node, node.tagName, node.attributes, node.children);
+          }
 
     window.parse = async function () {
       const input = document.getElementById('input').value;
@@ -136,8 +165,24 @@ This is a test with a **bold** word.
         // Create processor
         const processor = unified()
           .use(remarkParse)
-          .use(remarkRehype, { allowDangerousHtml: true })
-          .use(rehypeStringify, { allowDangerousHtml: true });
+          .use(remarkSvelte)  // Convert svelte: html to custom nodes
+          .use(remarkRehype, {
+            allowDangerousHtml: true,
+            handlers: {
+              svelteElement: (h, node) => {
+                return {
+                  type: 'element',
+                  tagName: node.tagName,
+                  properties: {},
+                  children: []
+                };
+              }
+            }
+          })
+          .use(rehypeStringify, {
+            allowDangerousCharacters: true,
+            closeSelfClosing: false
+          });
 
         // Parse to get AST
         const ast = processor.parse(input);

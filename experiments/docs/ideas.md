@@ -627,5 +627,18 @@ Possible solutions:
 - logic can be placeholded w/ comments and restored by string
 
 - alternatively, use svelte parse (has some downsides)
-- js expressions possible solution:
-  - 
+
+
+Possible overall
+- preprocess svelte:element and placehold it with comment
+- preprocess logic blocks and placehold it with comment (not attach)
+- replace all bracket matches with svmd0 string. Removes all bracket pairs including:
+    - js attrs, attach, expressions
+- call remark-parse to get mdast
+- restore all svmd placeholders in text nodes (now they are in the same node).
+    - Possibly modify the ast to actually make it seperate node for convenience
+- call remark plugins (latex, etc)
+- 
+
+
+tbh maybe it would be smarter to rely on svelte parse again and just do user defined escaping :/

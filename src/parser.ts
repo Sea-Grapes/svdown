@@ -22,12 +22,7 @@ export class SvmdParser {
     console.log('start str:')
     console.log(content)
 
-    const { string, data } = getBracketData(content)
-    content = string
-
-    let ast = svparse(content, { modern: true })
-
-    console.log(ast)
+    
 
     const parse = unified()
       .use(toMdast)
@@ -60,18 +55,4 @@ export async function parse(
   const parser = new SvmdParser(config)
   let res = await parser.parse(content, filename)
   return res
-}
-
-function getBracketData(str: string) {
-  let res = ''
-  let data: number[] = []
-  for (let i = 0; i < str.length; i++) {
-    if (str[i] === '{') data.push(i)
-    else res += str[i]
-  }
-
-  return {
-    string: res,
-    data,
-  }
 }

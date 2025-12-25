@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unified Parser Tester</title>
+  <style>
+    * { box-sizing: border-box;}
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .mb {
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #333;
+    }
+
+    textarea {
+      width: 100%;
+      height: 300px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      resize: vertical;
+    }
+
+    pre {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .output {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 4px;
+      background: white;
+      min-height: 100px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Unified Markdown Parser Tester</h1>
+
+  <div class="container">
+    <div class="panel">
+      <h2>Input Markdown</h2>
+      <textarea id="input"># Hello World
+
+This is a test with a **bold** word.
+
+<svelte:element this={tag}>
+  Custom content here
+</svelte:element>
+
+## Another section
+
+- List item 1
+- List item 2</textarea>
+      <br><br>
+      <button onclick="parse()">Parse</button>
+    </div>
+
+    <div class="panel">
+      <h2>MDAST (Abstract Syntax Tree)</h2>
+      <pre id="ast"></pre>
+    </div>
+  </div>
+
+  <div class="panel mb">
+    <h2>HTML Output</h2>
+    <div class="output" id="htmlOutput"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Raw HTML</h2>
+    <pre id="rawHtml"></pre>
+  </div>
+
+  <script type="module">
+    import { unified } from 'https://esm.sh/unified@11'
+    import remarkParse from 'https://esm.sh/remark-parse@11'
+    import remarkRehype from 'https://esm.sh/remark-rehype@11'
+    import rehypeStringify from 'https://esm.sh/rehype-stringify@10'
+
+    window.parse = async function () {
+      const input = document.getElementById('input').value;
+
+      try {
+        // Create processor
+        const processor = unified()
+          .use(remarkParse)
+          .use(remarkRehype, { allowDangerousHtml: true })
+          .use(rehypeStringify, { allowDangerousHtml: true });
+
+        // Parse to get AST
+        const ast = processor.parse(input);
+        document.getElementById('ast').textContent = JSON.stringify(ast, null, 2);
+        console.log(ast)
+
+        // Process to HTML
+        const result = await processor.process(input);
+        const html = String(result);
+
+        document.getElementById('htmlOutput').innerHTML = html;
+        document.getElementById('rawHtml').textContent = html;
+
+      } catch (error) {
+        console.error(error);
+        document.getElementById('ast').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // Parse on load
+    parse();
+  </script>
+</body>
+
+</html>

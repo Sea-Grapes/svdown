@@ -6,5 +6,4 @@ export default defineConfig({
     oxc: true,
   },
   sourcemap: true,
-  unbundle: true,
 })

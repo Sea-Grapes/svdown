@@ -573,3 +573,9 @@ Slop idea
 >
 > The remark plugin would merge adjacent paragraph nodes that your bracket ranges span across. This is post-processing the AST rather than pre-processing the text.
 > Would you like me to flesh out the remark plugin for merging paragraphs based on protected ranges?
+
+# Thinking continued
+
+So unified parse is fundamentally based on blocks + inlines. So theoretically it will always separate the text by blank lines, then parse stuff in them. Idk if this is true but it seems right.
+- therefore it might be wise to combine bracket nodes in the mdast. I could find the locations, then search the tree for the nodes in the range, and combine em
+- I could placehold the logic/attach and heal the other bracket ones. i guess

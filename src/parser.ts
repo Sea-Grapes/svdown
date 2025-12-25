@@ -18,9 +18,6 @@ export class SvmdParser {
   }
 
   async parse(content: string, filename?: string): Promise<any> {
-    const { str, logic } = escapeSvelteLogic(content)
-
-    content = str
 
     console.log('start str:')
     console.log(content)
@@ -28,7 +25,6 @@ export class SvmdParser {
     const parse = unified()
       .use(toMdast)
       .use(astInspect())
-      .use(mdastRestoreLogic, logic)
       .use(mdastToHast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -57,57 +53,4 @@ export async function parse(
   const parser = new SvmdParser(config)
   let res = await parser.parse(content, filename)
   return res
-}
-
-function mdastRestoreLogic(logic: string[]) {
-  let i = 0
-
-  return (tree: Root) => {
-    visit(tree, 'paragraph', (node: Paragraph, index, parent) => {
-      const first = node.children[0]
-      // console.log(node)
-
-      if (
-        first &&
-        first.type == 'text' &&
-        first.value.trim() == 'svmd0' &&
-        parent &&
-        index != null
-      ) {
-        // Replace the entire paragraph with the restored logic
-        parent.children[index] = {
-          type: 'html',
-          value: logic[i] || '',
-        }
-        i++
-        return SKIP
-      }
-    })
-
-    // console.log(tree)
-  }
-}
-
-const logic_start = /{[@#:/][a-z]+/g
-
-function escapeSvelteLogic(str: string) {
-  const matches = Array.from(str.matchAll(logic_start))
-    .map((m) => m.index)
-    .reverse()
-  // console.log(`found ${matches.length} matches`)
-
-  let logic: string[] = []
-
-  matches.forEach((start) => {
-    let end = findBracket(str, start)
-    // console.log(`match from ${start}, ${end}`)
-    logic.unshift(str.slice(start, end + 1))
-    str = replaceStr(str, start, end + 1, `svmd0`)
-  })
-
-  return { str, logic }
-}
-
-function replaceStr(str: string, start: number, end: number, insert: string) {
-  return str.slice(0, start) + insert + str.slice(end)
 }

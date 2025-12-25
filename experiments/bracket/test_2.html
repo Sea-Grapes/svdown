@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bracket Parser Tester</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #666;
+      font-size: 1.2em;
+    }
+
+    textarea {
+      width: 100%;
+      height: 400px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    pre {
+      background: #f8f8f8;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .info {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .bracket-node {
+      color: #d32f2f;
+      font-weight: bold;
+    }
+
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #1565c0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Markdown Bracket Parser Tester</h1>
+
+  <div class="info">
+    <strong>Test the custom {bracket} syntax:</strong> Brackets can span multiple lines, blank lines, and appear
+    anywhere in the text including at line starts.
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <h2>Input Markdown</h2>
+      <textarea id="input">Some text {inline bracket content} more text.
+
+{This bracket spans across
+
+multiple paragraphs
+
+and blank lines} and continues.
+
+Text {starting here
+# This heading is inside the bracket
+- List inside bracket
+- Another item
+ending here} more text.
+
+{Full document span from here
+
+## Heading inside
+
+Paragraph inside
+
+ending at document end}</textarea>
+      <button onclick="parse()">Parse</button>
+    </div>
+
+    <div class="panel">
+      <h2>AST Output</h2>
+      <pre id="output"></pre>
+    </div>
+  </div>
+
+  <script type="module">
+    // Micromark bracket extension
+    function brackets() {
+      return {
+        text: {
+          123: { // '{' character code
+            name: 'bracket',
+            tokenize: tokenizeBracket
+          }
+        },
+        flow: {
+          123: { // '{' character code  
+            name: 'bracket',
+            tokenize: tokenizeBracket
+          }
+        }
+      }
+    }
+
+    function tokenizeBracket(effects, ok, nok) {
+      return start
+
+      function start(code) {
+        effects.enter('bracket')
+        effects.enter('bracketMarker')
+        effects.consume(code) // consume '{'
+        effects.exit('bracketMarker')
+        effects.enter('bracketContent')
+        return inside
+      }
+
+      function inside(code) {
+        // Found closing bracket
+        if (code === 125) { // '}'
+          effects.exit('bracketContent')
+          effects.enter('bracketMarker')
+          effects.consume(code)
+          effects.exit('bracketMarker')
+          effects.exit('bracket')
+          return ok
+        }
+
+        // Handle EOF - unclosed bracket is an error
+        if (code === null) {
+          return nok(code)
+        }
+
+        // Consume everything else (including newlines)
+        effects.consume(code)
+        return inside
+      }
+    }
+
+    // MDAST util extension
+    function bracketFromMarkdown() {
+      return {
+        enter: {
+          bracket: function (token) {
+            this.enter({ type: 'bracket', value: '' }, token)
+          }
+        },
+        exit: {
+          bracketContent: function (token) {
+            const node = this.stack[this.stack.length - 1]
+            node.value += this.sliceSerialize(token)
+          },
+          bracket: function (token) {
+            this.exit(token)
+          }
+        }
+      }
+    }
+
+    // Make functions available globally
+    window.brackets = brackets
+    window.bracketFromMarkdown = bracketFromMarkdown
+  </script>
+
+  <script type="module">
+    import { fromMarkdown } from 'https://esm.sh/mdast-util-from-markdown@2'
+
+    window.parse = function () {
+      const input = document.getElementById('input').value
+      const output = document.getElementById('output')
+
+      try {
+        const tree = fromMarkdown(input, {
+          extensions: [window.brackets()],
+          mdastExtensions: [window.bracketFromMarkdown()]
+        })
+
+        output.textContent = JSON.stringify(tree, null, 2)
+
+        // Highlight bracket nodes
+        output.innerHTML = output.textContent.replace(
+          /"type": "bracket"/g,
+          '<span class="bracket-node">"type": "bracket"</span>'
+        )
+      } catch (e) {
+        output.textContent = 'Error: ' + e.message + '\n\n' + e.stack
+      }
+    }
+
+    // Parse on load
+    window.parse()
+  </script>
+</body>
+
+</html>

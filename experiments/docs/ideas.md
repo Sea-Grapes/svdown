@@ -577,5 +577,18 @@ Slop idea
 # Thinking continued
 
 So unified parse is fundamentally based on blocks + inlines. So theoretically it will always separate the text by blank lines, then parse stuff in them. Idk if this is true but it seems right.
+
 - therefore it might be wise to combine bracket nodes in the mdast. I could find the locations, then search the tree for the nodes in the range, and combine em
 - I could placehold the logic/attach and heal the other bracket ones. i guess
+
+**Could make a custom remark-parse that spits out a correct, svelte-aware ast**
+
+# Random idea
+
+What if I do svelte parse first. instead of escaping code blocks or latex things.
+
+- escape brackets that aren't logic blocks (don't have marker). Then the text is cooked.
+- what if I cut out all the brackets that aren't in the script tag, css, or have logic marker?
+- then parse svelte, and surely it works now right? Then you can insert them back based on the ast positions? (and update those numbers?)
+
+- then collect the text nodes, parse as markdown? (js logic will still be cooked, but latex, code will work w/ no escaping)

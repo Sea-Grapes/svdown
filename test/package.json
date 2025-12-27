@@ -1,3 +1,7 @@
 {
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test:bracket": "bun test bracket.test.js"
+
+  }
 }

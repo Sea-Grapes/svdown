@@ -662,3 +662,17 @@ I guess the best way I can think of to integrate this w/ unified is the above ap
   - placehold again
   - call mdast-to-hast and hast-stringify
   - restore placeholder (theoretically unbroken now)
+
+
+# Better idea:
+
+For brackets, simply ensure brackets are in the same node.
+- do this by removing the regions before mdast parse, then restoring the text after mdast parse
+- it must be restored for other things after to function
+
+For other things: extract md regions (smartly)
+- instead of escaping everything, just cut out sections and then interleave the results
+- for example, <svelte:custom> elements should be removed from the string passed to markdown
+- logic blocks can be removed as well
+- html elements should remain (and @attach/js attributes will be hidden using placeholder)
+- this may be everything??

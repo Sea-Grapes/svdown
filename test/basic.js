@@ -5,7 +5,7 @@ import { parse as svparse } from 'svelte/compiler'
 
 console.log('running basic test')
 
-let name = 'html.md'
+let name = 'stress.md'
 
 let f
 try {
@@ -22,7 +22,9 @@ try {
   svparse(res.code)
   console.log('parse succeeded')
 } catch (e) {
-  console.log(e)
+  // console.log(e)
+  console.log(`\nparse error at ${e.position[0]}:`)
+  console.log(e.frame)
 }
 
 // console.log('result:')

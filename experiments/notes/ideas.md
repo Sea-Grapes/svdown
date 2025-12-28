@@ -693,6 +693,6 @@ Steps:
 
 Todo:
 
-- figure out how to only extract text bits from markdown, combine with dividers. Then interleave
-- Fix @attach: it should leave in svmd0 then get replaced in the final string
+- [ ] figure out how to only extract text bits from markdown, combine with dividers. Then interleave
+- [x] Fix @attach: it should leave in svmd0 then get replaced in the final string
   - strangely dom attrs are only an issue if there's a `>` bracket symbol, {@attach} is fine (doesn't work w/ inline tho lmao)

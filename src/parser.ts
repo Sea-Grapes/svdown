@@ -54,12 +54,14 @@ export class SvmdParser {
     console.log('\ntext_ranges:')
     console.log(text_ranges)
 
-    let bracket_pairs: Array<{
+    interface Pair {
       start: number
       end: number
       text: string
       isSvelteLogic: boolean
-    }> = []
+    }
+
+    let bracket_pairs: Pair[] = []
 
     for (const range of text_ranges) {
       let i = range.start
@@ -84,6 +86,9 @@ export class SvmdParser {
     console.log('\nbracket_pairs:')
     console.log(bracket_pairs)
 
+    const js_brackets: Pair[] = []
+    const sv_brackets: Pair[] = []
+
     bracket_pairs.reverse().forEach((pair) => {
       if (pair.isSvelteLogic) {
         content = replaceStrSection(
@@ -92,13 +97,13 @@ export class SvmdParser {
           pair.end,
           '<!--svmd:logic-->'
         )
+        js_brackets.push(pair)
       } else {
         content =
           content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
+        sv_brackets.push(pair)
       }
     })
-
-    const js_brackets = bracket_pairs.filter((pair) => !pair.isSvelteLogic)
 
     function restoreBrackets() {
       return (tree: Root) => {

@@ -3,7 +3,7 @@ import { unified } from 'unified'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
 import hastToString from 'rehype-stringify'
-import { findBracket } from './bracket'
+import { findBracketEnd } from './bracket'
 
 import { parse as svparse } from 'svelte/compiler'
 import { SKIP, visit } from 'unist-util-visit'

@@ -116,12 +116,12 @@ export class SvmdParser {
             pair.end,
             '<!--svmd:logic-->'
           )
-          js_brackets.push(pair)
+          sv_brackets.push(pair)
         }
       } else {
         content =
           content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
-        sv_brackets.push(pair)
+        js_brackets.push(pair)
       }
     })
 

@@ -10,7 +10,7 @@ return x.id > 0
 {#each tests as test}{#if test}
 
 - {test}
-  {/if}{/each}
+{/if}{/each}
 
 In this short example, we show how \textbf{bold text}, \emph{italic text}, and inline math such as $a^2 + b^2 = c^2$ can appear in the same paragraph, along with a displayed equation
 \[

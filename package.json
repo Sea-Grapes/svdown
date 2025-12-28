@@ -16,6 +16,10 @@
     "md",
     "mdx"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sea-Grapes/svdown"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

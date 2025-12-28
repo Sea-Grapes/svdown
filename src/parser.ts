@@ -6,8 +6,11 @@ import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
 
-import { astInspect, replaceStrSection } from './util'
-import { findBracketEnd } from './bracket'
+import { findBracket, findBracketCore } from './bracket'
+import { replaceStrSection } from './util'
+
+import { astInspect } from './dev'
+import { inspect } from 'unist-util-inspect'
 
 export async function parse(
   content: string,
@@ -33,13 +36,14 @@ export class SvmdParser {
     // basic mdast parse
     let mdast = fromMarkdown(content)
     let text_ranges: Array<{ start: number; end: number }> = []
-    console.log(mdast)
+    console.log('\nmdast:')
+    console.log(inspect(mdast, { color: true }))
     visit(mdast, 'text', (node) => {
       // fumb typescript
       if (
         node.position &&
-        node.position.start.offset &&
-        node.position.end.offset
+        typeof node.position.start.offset == 'number' &&
+        typeof node.position.end.offset == 'number'
       ) {
         text_ranges.push({
           start: node.position.start.offset,
@@ -48,6 +52,8 @@ export class SvmdParser {
       }
     })
     text_ranges.sort((a, b) => a.start - b.start)
+    console.log('\ntext_ranges:')
+    console.log(text_ranges)
 
     let bracket_pairs: Array<{ start: number; end: number }> = []
 
@@ -56,15 +62,18 @@ export class SvmdParser {
       // Todo: eval efficiency (can reuse bracket knowledge)
       while (i < range.end) {
         if (content[i] === '{') {
-          const end = findBracketEnd(content, i)
-          if (end !== -1 && end < range.end) {
+          const end = findBracket(content, i)
+          console.log('found end:', end)
+          if (end !== -1 && end < content.length) {
             // We found a bracket pair
-            bracket_pairs.push({ start: i, end })
+            bracket_pairs.push({ start: i, end: end + 1 })
             i = end + 1
           } else i++
         } else i++
       }
     }
+    console.log('\nbracket_pairs:')
+    console.log(bracket_pairs)
 
     bracket_pairs.reverse().forEach((pair) => {
       content = replaceStrSection(content, pair.start, pair.end, 'svmd0')

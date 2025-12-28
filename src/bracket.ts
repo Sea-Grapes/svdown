@@ -2,24 +2,27 @@
 // Probably has 500 errors
 
 // Finds the closing bracket of a svelte logic tag
-export function findSvelteLogicEnd(str: string, pos: number) {
-  return findBracketEnd(str, pos, true)
+export function findBracket(str: string, pos: number) {
+  return findBracketCore(str, pos, true)
 }
 
-// Findsd the closing bracket of a js expression
-export function findBracketEnd(str: string, pos: number, svelte = false): number {
+// Finds the closing bracket of a js expression
+export function findBracketCore(
+  str: string,
+  pos: number,
+  first = false
+): number {
   if (str[pos] !== '{') {
     return -1
   }
 
   let i = pos + 1
 
-  if (svelte) {
+  if (first) {
     const next = str[i]
     if (next !== '#' && next !== ':' && next !== '/' && next !== '@') {
-      return -1
+      i++
     }
-    i++
   }
 
   let depth = 1
@@ -108,7 +111,7 @@ function findStringEnd(str: string, pos: number, quote: string): number {
 
     // Handle template literal expressions
     if (quote === '`' && char === '$' && str[i + 1] === '{') {
-      const closingBrace = findBracketEnd(str, i + 1, false)
+      const closingBrace = findBracketCore(str, i + 1, false)
       if (closingBrace === -1) return -1
       i = closingBrace + 1
       continue

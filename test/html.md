@@ -14,3 +14,10 @@ In this short example, we show how \textbf{bold text}, \emph{italic text}, and i
 which is commonly used in mathematics.
 
 \end{document}
+
+```js
+bracket_pairs.reverse().forEach((pair) => {
+  pair.text = content.slice(pair.start, pair.end)
+  content = content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
+})
+```

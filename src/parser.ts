@@ -5,10 +5,9 @@ import { unified } from 'unified'
 import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-
 import { findBracket, findBracketCore } from './bracket'
 import { replaceStrSection } from './util'
-
+import type { Root } from 'mdast'
 import { astInspect } from './dev'
 import { inspect } from 'unist-util-inspect'
 
@@ -80,8 +79,21 @@ export class SvmdParser {
       content = content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
     })
 
+    function restoreBrackets() {
+      return (tree: Root) => {
+        visit(tree, 'text', (node) => {
+          if (node.value.includes('svmd0')) {
+            node.value = node.value.replaceAll('svmd0', () => {
+              return bracket_pairs.pop()?.text || 'svmd0'
+            })
+          }
+        })
+      }
+    }
+
     const parse = unified()
       .use(toMdast)
+      .use(restoreBrackets)
       .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,

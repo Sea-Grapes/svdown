@@ -54,7 +54,12 @@ export class SvmdParser {
     console.log('\ntext_ranges:')
     console.log(text_ranges)
 
-    let bracket_pairs: Array<{ start: number; end: number; text: string }> = []
+    let bracket_pairs: Array<{
+      start: number
+      end: number
+      text: string
+      isSvelteLogic: boolean
+    }> = []
 
     for (const range of text_ranges) {
       let i = range.start
@@ -62,11 +67,14 @@ export class SvmdParser {
       while (i < range.end) {
         if (content[i] === '{') {
           const end = findBracket(content, i)
-          console.log('found end:', end)
+          console.log('found end:', i, end)
           if (end !== -1 && end < content.length) {
+            let tmp = end + 1
+            const text = content.slice(i, tmp)
+            const isSvelteLogic = /{[#:/@]\w+/.test(text)
             // We found a bracket pair
-            bracket_pairs.push({ start: i, end: end + 1, text: '' })
-            i = end + 1
+            bracket_pairs.push({ start: i, end: tmp, text, isSvelteLogic })
+            i = tmp
           } else i++
         } else i++
       }
@@ -75,8 +83,17 @@ export class SvmdParser {
     console.log(bracket_pairs)
 
     bracket_pairs.reverse().forEach((pair) => {
-      pair.text = content.slice(pair.start, pair.end)
-      content = content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
+      if (pair.isSvelteLogic) {
+        content = replaceStrSection(
+          content,
+          pair.start,
+          pair.end,
+          '<!--svmd:logic-->'
+        )
+      } else {
+        content =
+          content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
+      }
     })
 
     function restoreBrackets() {

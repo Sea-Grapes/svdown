@@ -8,13 +8,13 @@
     "dist",
     "src"
   ],
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.mjs",
+    ".": "./dist/index.js",
     "./package.json": "./package.json",
-    "./data": "./dist/data.mjs"
+    "./data": "./dist/data.js"
   },
   "scripts": {
     "build": "tsdown",

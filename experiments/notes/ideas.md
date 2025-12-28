@@ -676,3 +676,12 @@ For other things: extract md regions (smartly)
 - logic blocks can be removed as well
 - html elements should remain (and @attach/js attributes will be hidden using placeholder)
 - this may be everything??
+
+Benefits of this approach:
+- latex works automatically (theoretically), no need for custom preprocess things
+  - All the bracket thing does is ensure the contents are in the same node, the actual content of them will be inserted during parsing.
+
+
+
+Steps:
+1. possibly, parse mdast to find text nodes (avoid script & code tags)

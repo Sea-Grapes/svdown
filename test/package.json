@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "test:bracket": "bun test bracket.test.js"
-
+    "test:bracket": "bun test bracket.test.js",
+    "test:basic": "node basic.js"
   }
 }

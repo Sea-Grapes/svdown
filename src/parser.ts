@@ -98,12 +98,14 @@ export class SvmdParser {
       }
     })
 
+    const js_brackets = bracket_pairs.filter((pair) => !pair.isSvelteLogic)
+
     function restoreBrackets() {
       return (tree: Root) => {
         visit(tree, 'text', (node) => {
           if (node.value.includes('svmd0')) {
             node.value = node.value.replaceAll('svmd0', () => {
-              return bracket_pairs.pop()?.text || 'svmd0'
+              return js_brackets.pop()?.text || 'svmd0'
             })
           }
         })

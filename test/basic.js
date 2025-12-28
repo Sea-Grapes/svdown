@@ -1,10 +1,11 @@
 import { parse } from '../dist/index.js'
 import fs from 'fs'
 import path from 'path'
+import { parse as svparse } from 'svelte/compiler'
 
 console.log('running basic test')
 
-let name = 'attach.md'
+let name = 'stress.md'
 
 let f
 try {
@@ -16,5 +17,13 @@ try {
 }
 
 let res = await parse(f)
+
+try {
+  svparse(res.code)
+  console.log('parse succeeded')
+} catch (e) {
+  console.log(e)
+}
+
 // console.log('result:')
 // console.log(res.code)

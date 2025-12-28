@@ -101,12 +101,14 @@ export class SvmdParser {
 
     const js_brackets: Pair[] = []
     const sv_brackets: Pair[] = []
+    const at_brackets: Pair[] = []
 
     bracket_pairs.reverse().forEach((pair) => {
       if (pair.isSvelteLogic) {
         // Todo: eval smarter solution
         if (pair.text.startsWith('{@attach')) {
           content = replaceStrSection(content, pair.start, pair.end, 'svmd1')
+          at_brackets.push(pair)
         } else {
           content = replaceStrSection(
             content,
@@ -114,8 +116,8 @@ export class SvmdParser {
             pair.end,
             '<!--svmd:logic-->'
           )
+          js_brackets.push(pair)
         }
-        js_brackets.push(pair)
       } else {
         content =
           content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
@@ -149,7 +151,17 @@ export class SvmdParser {
         allowDangerousCharacters: true,
       })
 
-    let res = String(parse.processSync(content))
+    content = String(parse.processSync(content))
+
+    content = content.replaceAll('<!--svmd:logic-->', () => {
+      return sv_brackets.pop()?.text || '<!--svmd:logic-->'
+    })
+
+    content = content.replaceAll('svmd1', () => {
+      return at_brackets.pop()?.text || 'svmd1'
+    })
+
+    let res = content
 
     console.log('Final str:')
     console.log(res)

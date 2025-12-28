@@ -11,7 +11,7 @@
 
 <svelte:head>
   <link rel="icon" href={favicon} />
-  <title>Sveltemd</title>
+  <title>Svdown</title>
 </svelte:head>
 
 <main class="min-h-screen">
@@ -25,7 +25,7 @@
     >
       <a href="/" class="text-lg flex gap-2 items-center">
         <ISvelte />
-        Sveltemd</a
+        Svdown</a
       >
       <div class="flex gap-8 text-[15px] text-zinc-600">
         <a href="/docs">Docs</a>

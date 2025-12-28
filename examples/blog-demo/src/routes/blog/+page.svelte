@@ -1,5 +1,5 @@
 <script>
-  import { metadata } from 'sveltemd/data'
+  import { metadata } from 'svdown/data'
 
   let posts = metadata()
 </script>

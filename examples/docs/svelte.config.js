@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-static'
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
-import { markdown } from 'sveltemd'
+import { markdown } from 'svdown'
 import { titleCase } from 'title-case'
 
 /** @type {import('@sveltejs/kit').Config} */

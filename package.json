@@ -1,5 +1,5 @@
 {
-  "name": "sveltemd",
+  "name": "svdown",
   "version": "0.1.0",
   "description": "A modern markdown preprocessor for Svelte",
   "type": "module",

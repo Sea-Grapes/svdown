@@ -32,6 +32,13 @@ export class SvmdParser {
     console.log('start str:')
     console.log(content)
 
+    const svelte_prefixes: string[] = []
+
+    content = content.replace(/svelte:(\w+)/g, (match, tagName) => {
+      svelte_prefixes.push(match)
+      return 'svmd2'
+    })
+
     // basic mdast parse
     let mdast = fromMarkdown(content)
     let text_ranges: Array<{ start: number; end: number }> = []
@@ -159,6 +166,10 @@ export class SvmdParser {
 
     content = content.replaceAll('svmd1', () => {
       return at_brackets.pop()?.text || 'svmd1'
+    })
+
+    content = content.replaceAll('svmd2', () => {
+      return svelte_prefixes.shift() || 'svmd2'
     })
 
     let res = content

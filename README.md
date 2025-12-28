@@ -1,19 +1,21 @@
-# Sveltemd
+# Svdown
 
 A modern markdown preprocessor for Svelte (WIP). Focused on providing extremely easy markdown usage with minimal config needed.
 
+Inspired by [MDsveX](https://github.com/pngwn/MDsveX)!
+
 ## Installing
 
-_Note: package not published yet._
+_Note: package still in active development._
 
 ```bash
-pnpm i -D sveltemd
+pnpm i -D svdown
 ```
 
 Add it to your `svelte.config.js`:
 
 ```js
-import { markdown } from 'sveltemd'
+import { markdown } from 'svdown'
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {

@@ -1,54 +1,15 @@
-import { PluginConfig } from '.'
-import { unified } from 'unified'
+import hastToString from 'rehype-stringify'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
-import hastToString from 'rehype-stringify'
-import { findBracket } from './bracket'
-
-import { SKIP, visit } from 'unist-util-visit'
-import type { Paragraph, Root, Text } from 'mdast'
-import { astInspect } from './util'
-
-export class SvmdParser {
-  config: PluginConfig
-
-  constructor(config?: PluginConfig) {
-    // Todo: default config + merging
-    this.config = config ?? {}
-  }
-
-  async parse(content: string, filename?: string): Promise<any> {
-    const { str, logic } = escapeSvelteLogic(content)
-
-    content = str
-
-    console.log('start str:')
-    console.log(content)
-
-    const parse = unified()
-      .use(toMdast)
-      .use(astInspect())
-      .use(mdastRestoreLogic, logic)
-      .use(mdastToHast, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
-      .use(astInspect())
-      .use(hastToString, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
-
-    let res = String(parse.processSync(content))
-
-    console.log('Final str:')
-    console.log(res)
-
-    return {
-      code: res,
-    }
-  }
-}
+import { unified } from 'unified'
+import { PluginConfig } from '.'
+import { fromMarkdown } from 'mdast-util-from-markdown'
+import { visit } from 'unist-util-visit'
+import { findBracket, findBracketCore } from './bracket'
+import { replaceStrSection } from './util'
+import type { Node, Root } from 'mdast'
+import { astInspect } from './dev'
+import { inspect } from 'unist-util-inspect'
 
 export async function parse(
   content: string,
@@ -59,55 +20,183 @@ export async function parse(
   return res
 }
 
-function mdastRestoreLogic(logic: string[]) {
-  let i = 0
+export class SvmdParser {
+  config: PluginConfig
 
-  return (tree: Root) => {
-    visit(tree, 'paragraph', (node: Paragraph, index, parent) => {
-      const first = node.children[0]
-      // console.log(node)
+  constructor(config?: PluginConfig) {
+    // Todo: default config + merging
+    this.config = config ?? {}
+  }
+
+  async parse(content: string, filename?: string): Promise<any> {
+    console.log('start str:')
+    console.log(content)
+
+    const svelte_prefixes: string[] = []
+
+    content = content.replace(/svelte:(\w+)/g, (match, tagName) => {
+      svelte_prefixes.push(match)
+      return 'svmd2'
+    })
+
+    // basic mdast parse
+    let mdast = fromMarkdown(content)
+    let text_ranges: Array<{ start: number; end: number; type: string }> = []
+    console.log('\nmdast:')
+    console.log(mdast)
+    // console.log(inspect(mdast, { color: true }))
+    visit(mdast, ['text', 'html'], (node: Node) => {
+      // fumb typescript
+      // @ts-ignore
+      let text: string = node.value
+
+      // not needed but safe
+      if (!text.includes('{')) return
+
+      if (node.type === 'html') {
+        let blacklist = ['script', 'style']
+        let tag = text.match(/\w+/)?.[0] || ''
+        if (blacklist.includes(tag)) return
+      }
 
       if (
-        first &&
-        first.type == 'text' &&
-        first.value.trim() == 'svmd0' &&
-        parent &&
-        index != null
+        node.position &&
+        typeof node.position.start.offset == 'number' &&
+        typeof node.position.end.offset == 'number'
       ) {
-        // Replace the entire paragraph with the restored logic
-        parent.children[index] = {
-          type: 'html',
-          value: logic[i] || '',
+        text_ranges.push({
+          start: node.position.start.offset,
+          end: node.position.end.offset,
+          type: node.type,
+        })
+      }
+    })
+    text_ranges.sort((a, b) => a.start - b.start)
+    console.log('\ntext_ranges:')
+    console.log(text_ranges)
+
+    interface Pair {
+      start: number
+      end: number
+      text: string
+      isSvelteLogic: boolean
+      isFromHtml: boolean
+    }
+
+    let bracket_pairs: Pair[] = []
+
+    for (const range of text_ranges) {
+      let i = range.start
+      // Todo: eval efficiency (can reuse bracket knowledge)
+      while (i < range.end) {
+        // console.log(content)
+        // console.log(content[i])
+        if (content[i] === '{') {
+          const end = findBracket(content, i)
+          // console.log('found end:', i, end)
+          if (end !== -1 && end < content.length) {
+            let tmp = end + 1
+            const text = content.slice(i, tmp)
+            const isSvelteLogic = /{[#:/@]\w+/.test(text)
+            const isFromHtml = range.type === 'html'
+            // We found a bracket pair
+            bracket_pairs.push({
+              start: i,
+              end: tmp,
+              text,
+              isSvelteLogic,
+              isFromHtml,
+            })
+            i = tmp
+          } else i++
+        } else i++
+      }
+    }
+    console.log('\nbracket_pairs:')
+    console.log(bracket_pairs)
+
+    const js_brackets: Pair[] = []
+    const sv_brackets: Pair[] = []
+    const at_brackets: Pair[] = []
+    const ht_brackets: Pair[] = []
+
+    bracket_pairs.reverse().forEach((pair) => {
+      if (pair.isSvelteLogic) {
+        // Todo: eval smarter solution
+        if (pair.text.startsWith('{@attach')) {
+          content = replaceStrSection(content, pair.start, pair.end, 'svmd1')
+          at_brackets.push(pair)
+        } else {
+          content = replaceStrSection(
+            content,
+            pair.start,
+            pair.end,
+            '<!--svmd:logic-->'
+          )
+          sv_brackets.push(pair)
         }
-        i++
-        return SKIP
+      } else if (pair.isFromHtml) {
+        content =
+          content.slice(0, pair.start) + 'svmd3' + content.slice(pair.end)
+        ht_brackets.push(pair)
+      } else {
+        content =
+          content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
+        js_brackets.push(pair)
       }
     })
 
-    // console.log(tree)
+    function restoreBrackets() {
+      return (tree: Root) => {
+        visit(tree, 'text', (node) => {
+          if (node.value.includes('svmd0')) {
+            node.value = node.value.replaceAll('svmd0', () => {
+              return js_brackets.pop()?.text || 'svmd0'
+            })
+          }
+        })
+      }
+    }
+
+    const parse = unified()
+      .use(toMdast)
+      .use(restoreBrackets)
+      .use(astInspect())
+      .use(mdastToHast, {
+        allowDangerousHtml: true,
+        allowDangerousCharacters: true,
+      })
+      .use(astInspect())
+      .use(hastToString, {
+        allowDangerousHtml: true,
+        allowDangerousCharacters: true,
+      })
+
+    content = String(parse.processSync(content))
+
+    content = content.replaceAll('<!--svmd:logic-->', () => {
+      return sv_brackets.pop()?.text || '<!--svmd:logic-->'
+    })
+
+    content = content.replaceAll('svmd1', () => {
+      return at_brackets.pop()?.text || 'svmd1'
+    })
+
+    content = content.replaceAll('svmd2', () => {
+      return svelte_prefixes.shift() || 'svmd2'
+    })
+
+    content = content.replaceAll('svmd3', () => {
+      return ht_brackets.pop()?.text || 'svmd3'
+    })
+
+    let res = content
+
+    console.log('Final str:')
+    console.log(res)
+
+    return {
+      code: res,
+    }
   }
-}
-
-const logic_start = /{[@#:/][a-z]+/g
-
-function escapeSvelteLogic(str: string) {
-  const matches = Array.from(str.matchAll(logic_start))
-    .map((m) => m.index)
-    .reverse()
-  // console.log(`found ${matches.length} matches`)
-
-  let logic: string[] = []
-
-  matches.forEach((start) => {
-    let end = findBracket(str, start)
-    // console.log(`match from ${start}, ${end}`)
-    logic.unshift(str.slice(start, end + 1))
-    str = replaceStr(str, start, end + 1, `svmd0`)
-  })
-
-  return { str, logic }
-}
-
-function replaceStr(str: string, start: number, end: number, insert: string) {
-  return str.slice(0, start) + insert + str.slice(end)
 }

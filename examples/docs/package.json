@@ -35,7 +35,7 @@
     ]
   },
   "dependencies": {
-    "sveltemd": "link:../..",
+    "svdown": "link:../..",
     "title-case": "^4.3.2"
   }
 }

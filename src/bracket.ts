@@ -1,21 +1,28 @@
 // Based on https://github.com/sveltejs/svelte/blob/main/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js
 // Probably has 500 errors
 
-// Todo: eval if need 2 types: svelteLogic and js/json
-// probably not necessary
-export function findBracket(str: string, pos: number, svelte = true): number {
+// Finds the closing bracket of a svelte logic tag
+export function findBracket(str: string, pos: number) {
+  return findBracketCore(str, pos, true)
+}
+
+// Finds the closing bracket of a js expression
+export function findBracketCore(
+  str: string,
+  pos: number,
+  first = false
+): number {
   if (str[pos] !== '{') {
     return -1
   }
 
   let i = pos + 1
 
-  if (svelte) {
+  if (first) {
     const next = str[i]
-    if (next !== '#' && next !== ':' && next !== '/' && next !== '@') {
-      return -1
+    if (next === '#' || next === ':' || next === '/' || next === '@') {
+      i++
     }
-    i++
   }
 
   let depth = 1
@@ -104,7 +111,7 @@ function findStringEnd(str: string, pos: number, quote: string): number {
 
     // Handle template literal expressions
     if (quote === '`' && char === '$' && str[i + 1] === '{') {
-      const closingBrace = findBracket(str, i + 1, false)
+      const closingBrace = findBracketCore(str, i + 1, false)
       if (closingBrace === -1) return -1
       i = closingBrace + 1
       continue

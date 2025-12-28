@@ -134,8 +134,12 @@ export class SvmdParser {
 
     function restoreBrackets() {
       return (tree: Root) => {
-        visit(tree, 'text', (node) => {
-          if (node.value.includes('svmd0')) {
+        visit(tree, ['text', 'html'], (node: Node) => {
+          if (
+            'value' in node &&
+            typeof node.value === 'string' &&
+            node.value.includes('svmd0')
+          ) {
             node.value = node.value.replaceAll('svmd0', () => {
               return js_brackets.pop()?.text || 'svmd0'
             })

@@ -5,7 +5,7 @@ import { parse as svparse } from 'svelte/compiler'
 
 console.log('running basic test')
 
-let name = 'stress.md'
+let name = 'svelte_element.md'
 
 let f
 try {

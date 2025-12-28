@@ -20,7 +20,7 @@ export function findBracketCore(
 
   if (first) {
     const next = str[i]
-    if (next !== '#' && next !== ':' && next !== '/' && next !== '@') {
+    if (next === '#' || next === ':' || next === '/' || next === '@') {
       i++
     }
   }

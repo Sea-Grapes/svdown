@@ -65,6 +65,8 @@ export class SvmdParser {
       let i = range.start
       // Todo: eval efficiency (can reuse bracket knowledge)
       while (i < range.end) {
+        console.log(content)
+        console.log(content[i])
         if (content[i] === '{') {
           const end = findBracket(content, i)
           console.log('found end:', i, end)

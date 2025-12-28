@@ -7,7 +7,7 @@ import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
 import { findBracket, findBracketCore } from './bracket'
 import { replaceStrSection } from './util'
-import type { Root } from 'mdast'
+import type { Node, Root } from 'mdast'
 import { astInspect } from './dev'
 import { inspect } from 'unist-util-inspect'
 
@@ -36,9 +36,22 @@ export class SvmdParser {
     let mdast = fromMarkdown(content)
     let text_ranges: Array<{ start: number; end: number }> = []
     console.log('\nmdast:')
-    console.log(inspect(mdast, { color: true }))
-    visit(mdast, 'text', (node) => {
+    console.log(mdast)
+    // console.log(inspect(mdast, { color: true }))
+    visit(mdast, ['text', 'html'], (node: Node) => {
       // fumb typescript
+      // @ts-ignore
+      let text: string = node.value
+
+      // not needed but safe
+      if (!text.includes('{')) return
+
+      if (node.type === 'html') {
+        let blacklist = ['script', 'style']
+        let tag = text.match(/\w+/)?.[0] || ''
+        if (blacklist.includes(tag)) return
+      }
+
       if (
         node.position &&
         typeof node.position.start.offset == 'number' &&
@@ -67,11 +80,11 @@ export class SvmdParser {
       let i = range.start
       // Todo: eval efficiency (can reuse bracket knowledge)
       while (i < range.end) {
-        console.log(content)
-        console.log(content[i])
+        // console.log(content)
+        // console.log(content[i])
         if (content[i] === '{') {
           const end = findBracket(content, i)
-          console.log('found end:', i, end)
+          // console.log('found end:', i, end)
           if (end !== -1 && end < content.length) {
             let tmp = end + 1
             const text = content.slice(i, tmp)
@@ -91,12 +104,17 @@ export class SvmdParser {
 
     bracket_pairs.reverse().forEach((pair) => {
       if (pair.isSvelteLogic) {
-        content = replaceStrSection(
-          content,
-          pair.start,
-          pair.end,
-          '<!--svmd:logic-->'
-        )
+        // Todo: eval smarter solution
+        if (pair.text.startsWith('{@attach')) {
+          content = replaceStrSection(content, pair.start, pair.end, 'svmd1')
+        } else {
+          content = replaceStrSection(
+            content,
+            pair.start,
+            pair.end,
+            '<!--svmd:logic-->'
+          )
+        }
         js_brackets.push(pair)
       } else {
         content =

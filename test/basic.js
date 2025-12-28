@@ -4,12 +4,14 @@ import path from 'path'
 
 console.log('running basic test')
 
+let name = 'attach.md'
+
 let f
 try {
-  f = fs.readFileSync(path.resolve('html.md'), 'utf-8')
+  f = fs.readFileSync(path.resolve(name), 'utf-8')
 } catch (e) {
   try {
-    f = fs.readFileSync(path.resolve('test/html.md'), 'utf-8')
+    f = fs.readFileSync(path.resolve('test/' + name), 'utf-8')
   } catch (e) {}
 }
 

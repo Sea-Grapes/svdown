@@ -598,79 +598,84 @@ What if I do svelte parse first. instead of escaping code blocks or latex things
 1. escape logic blocks as comment placeholder using bracket matching (string preprocess)
 2. escape @attach as string placeholder using bracket matching (also string preprocess)
 3. issue: forgot about js attributes on html lol. Could combine with above: any brackets inside arrows <> that aren't in a string.. oof
-  - could maybe even wrap it in a string and it would be ok?? can arbitrary js be in an html str
-    - tested: this works pretty well but breaks on multiple lines
+
+- could maybe even wrap it in a string and it would be ok?? can arbitrary js be in an html str
+  - tested: this works pretty well but breaks on multiple lines
 
 # IDEA for solving js expressions
 
 - first escape all bracket matches into svmd0 string or whatever
-- then in mdast, replace them with actual string. *this makes the string in the same node like I wanted*.
+- then in mdast, replace them with actual string. _this makes the string in the same node like I wanted_.
 - then run plugins, remark-math, etc.
 - not sure how these transform.
 - maybe run remark-rehype, it should not escape things yet.
 - now any brackets leftover can be escaped theoretically. This will break writing normal text brackets but i think its ok
 
 For the rest of it:
+
 - possibly use bracket matching to do logic blocks
 
 # Full plan
 
 Things that break md:
-- custom els        <svelte:element>
-- js attrs          <html onclick={()=>{}}>
-- attach            <div {@attach}>
-- js expressions    {count > 5}
-- logic             {#each}
+
+- custom els <svelte:element>
+- js attrs <html onclick={()=>{}}>
+- attach <div {@attach}>
+- js expressions {count > 5}
+- logic {#each}
 
 Possible solutions:
+
 - somehow make html parsing looser so that the first 3 things aren't affected
 - logic can be placeholded w/ comments and restored by string
 
 - alternatively, use svelte parse (has some downsides)
 
-
 Possible overall
+
 - preprocess svelte:element and placehold it with comment
 - preprocess logic blocks and placehold it with comment (not attach)
 - replace all bracket matches with svmd0 string. Removes all bracket pairs including:
-    - js attrs, attach, expressions
+  - js attrs, attach, expressions
 - call remark-parse to get mdast
 - restore all svmd placeholders in text nodes (now they are in the same node).
-    - Possibly modify the ast to actually make it seperate node for convenience
+  - Possibly modify the ast to actually make it seperate node for convenience
 - call remark plugins (latex, etc)
 - maybe hide them again??
 
-
 tbh maybe it would be smarter to rely on svelte parse again and just do user defined escaping :/
-
 
 # Reevaluating
 
 - basically markdown should only touch actual text in svelte. So aside from the svelte syntax, there are markdown areas. And those areas can have anything in them. How do we do this?
   - well the syntax highlighter is able to do this. Like if I put markdown in svelte file, it won't get screwed up.
   - this is not true, things like code blocks definitely do get screwed up. or latex. (in the same sense as my parsing stuff)
-  
+
 So then clearly we have to use markdown first and make it avoid screwing up svelte
+
 - can we make it just leave bracket things alone? (If its not being used by like latex or smth)
 
 I guess the best way I can think of to integrate this w/ unified is the above approach:
-  - find bracket matcher pairs, replace them with +svmd or smth
-      - maybe call light mdast first and only find pairs in text? could help avoid code blocks
-  - remark-parse to get mdast
-  - restore svmd to original text (now in same node)
-  - call remark plugins
-  - placehold again
-  - call mdast-to-hast and hast-stringify
-  - restore placeholder (theoretically unbroken now)
 
+- find bracket matcher pairs, replace them with +svmd or smth
+  - maybe call light mdast first and only find pairs in text? could help avoid code blocks
+- remark-parse to get mdast
+- restore svmd to original text (now in same node)
+- call remark plugins
+- placehold again
+- call mdast-to-hast and hast-stringify
+- restore placeholder (theoretically unbroken now)
 
 # Better idea:
 
 For brackets, simply ensure brackets are in the same node.
+
 - do this by removing the regions before mdast parse, then restoring the text after mdast parse
 - it must be restored for other things after to function
 
 For other things: extract md regions (smartly)
+
 - instead of escaping everything, just cut out sections and then interleave the results
 - for example, <svelte:custom> elements should be removed from the string passed to markdown
 - logic blocks can be removed as well
@@ -678,10 +683,16 @@ For other things: extract md regions (smartly)
 - this may be everything??
 
 Benefits of this approach:
+
 - latex works automatically (theoretically), no need for custom preprocess things
   - All the bracket thing does is ensure the contents are in the same node, the actual content of them will be inserted during parsing.
 
-
-
 Steps:
+
 1. possibly, parse mdast to find text nodes (avoid script & code tags)
+
+Todo:
+
+- figure out how to only extract text bits from markdown, combine with dividers. Then interleave
+- Fix @attach: it should leave in svmd0 then get replaced in the final string
+  - strangely dom attrs are only an issue if there's a `>` bracket symbol, {@attach} is fine (doesn't work w/ inline tho lmao)

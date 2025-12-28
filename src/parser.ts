@@ -55,7 +55,7 @@ export class SvmdParser {
     console.log('\ntext_ranges:')
     console.log(text_ranges)
 
-    let bracket_pairs: Array<{ start: number; end: number }> = []
+    let bracket_pairs: Array<{ start: number; end: number; text: string }> = []
 
     for (const range of text_ranges) {
       let i = range.start
@@ -66,7 +66,7 @@ export class SvmdParser {
           console.log('found end:', end)
           if (end !== -1 && end < content.length) {
             // We found a bracket pair
-            bracket_pairs.push({ start: i, end: end + 1 })
+            bracket_pairs.push({ start: i, end: end + 1, text: '' })
             i = end + 1
           } else i++
         } else i++
@@ -76,7 +76,8 @@ export class SvmdParser {
     console.log(bracket_pairs)
 
     bracket_pairs.reverse().forEach((pair) => {
-      content = replaceStrSection(content, pair.start, pair.end, 'svmd0')
+      pair.text = content.slice(pair.start, pair.end)
+      content = content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
     })
 
     const parse = unified()

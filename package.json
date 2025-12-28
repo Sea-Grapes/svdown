@@ -1,6 +1,6 @@
 {
   "name": "svdown",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A modern markdown preprocessor for Svelte",
   "type": "module",
   "author": "Sea Grapes",

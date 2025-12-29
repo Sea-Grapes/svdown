@@ -49,8 +49,6 @@
     "@types/unist": "^3.0.3",
     "estree-walker": "^3.0.3",
     "gray-matter": "^4.0.3",
-    "hast-util-from-html": "^2.0.3",
-    "hast-util-to-html": "^9.0.5",
     "html-entities": "^2.6.0",
     "magic-string": "^0.30.17",
     "mdast-util-from-markdown": "^2.0.2",

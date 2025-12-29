@@ -7,7 +7,7 @@ import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
 import { findBracket, findBracketCore } from './bracket'
 import { replaceStrSection } from './util'
-import type { Node, Root } from 'mdast'
+import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
 import { inspect } from 'unist-util-inspect'
 
@@ -41,7 +41,7 @@ export class SvmdParser {
 
     // basic mdast parse
     let mdast = fromMarkdown(content)
-    let text_ranges: Array<{ start: number; end: number; type: string }> = []
+    let text_ranges: Array<{ start: number; end: number }> = []
     console.log('\nmdast:')
     console.log(mdast)
     // console.log(inspect(mdast, { color: true }))
@@ -67,7 +67,6 @@ export class SvmdParser {
         text_ranges.push({
           start: node.position.start.offset,
           end: node.position.end.offset,
-          type: node.type,
         })
       }
     })
@@ -80,7 +79,6 @@ export class SvmdParser {
       end: number
       text: string
       isSvelteLogic: boolean
-      isFromHtml: boolean
     }
 
     let bracket_pairs: Pair[] = []
@@ -98,14 +96,12 @@ export class SvmdParser {
             let tmp = end + 1
             const text = content.slice(i, tmp)
             const isSvelteLogic = /{[#:/@]\w+/.test(text)
-            const isFromHtml = range.type === 'html'
             // We found a bracket pair
             bracket_pairs.push({
               start: i,
               end: tmp,
               text,
               isSvelteLogic,
-              isFromHtml,
             })
             i = tmp
           } else i++
@@ -118,7 +114,6 @@ export class SvmdParser {
     const js_brackets: Pair[] = []
     const sv_brackets: Pair[] = []
     const at_brackets: Pair[] = []
-    const ht_brackets: Pair[] = []
 
     bracket_pairs.reverse().forEach((pair) => {
       if (pair.isSvelteLogic) {
@@ -135,10 +130,6 @@ export class SvmdParser {
           )
           sv_brackets.push(pair)
         }
-      } else if (pair.isFromHtml) {
-        content =
-          content.slice(0, pair.start) + 'svmd3' + content.slice(pair.end)
-        ht_brackets.push(pair)
       } else {
         content =
           content.slice(0, pair.start) + 'svmd0' + content.slice(pair.end)
@@ -146,13 +137,23 @@ export class SvmdParser {
       }
     })
 
+    const ht_brackets: Pair[] = []
+
     function restoreBrackets() {
       return (tree: Root) => {
-        visit(tree, 'text', (node) => {
-          if (node.value.includes('svmd0')) {
+        visit(tree, ['text', 'html'], (node: Node) => {
+          if (
+            node.type === 'text' &&
+            'value' in node &&
+            typeof node.value === 'string' &&
+            node.value.includes('svmd0')
+          ) {
             node.value = node.value.replaceAll('svmd0', () => {
               return js_brackets.pop()?.text || 'svmd0'
             })
+          } else if (node.type === 'html') {
+            let next = js_brackets.pop()
+            next && ht_brackets.push(next)
           }
         })
       }
@@ -186,8 +187,8 @@ export class SvmdParser {
       return svelte_prefixes.shift() || 'svmd2'
     })
 
-    content = content.replaceAll('svmd3', () => {
-      return ht_brackets.pop()?.text || 'svmd3'
+    content = content.replaceAll('svmd0', () => {
+      return ht_brackets.pop()?.text || 'svmd0'
     })
 
     let res = content

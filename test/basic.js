@@ -5,7 +5,7 @@ import { parse as svparse } from 'svelte/compiler'
 
 console.log('running basic test')
 
-let name = 'svelte_element.md'
+let name = 'html_text.md'
 
 let f
 try {

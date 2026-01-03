@@ -40,8 +40,10 @@
             .use(remarkParse)
             .use(remarkRehype, {
               allowDangerousHtml: true,
+              // allowDangerousCharacters: true,
             })
             .use(rehypeStringify, {
+              // allowDangerousHtml: true,
               allowDangerousCharacters: true,
               closeSelfClosing: false,
             })

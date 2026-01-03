@@ -711,3 +711,4 @@ Todo:
 Thoughts
 - I think a custom simplified mdast parse for the first phase is beneficial.
     - say I want to remove extra whitespace (replace w/ 1 space) before/after bracket pairs in html elements, to fix html element breaking from having too many newlines. This is a very good feature since it aids user ergonomics. This requires custom parsing because mdast will mark these html elements as text instead (and also things will break like the `>` can turn into blockquote)
+    - the reason for this because we kinda don't want to remove whitespace in the text nodes, since whitespace contributes to the text. Really we only want to remove whitespace in the html nodes because they aren't affected by removing whitespace

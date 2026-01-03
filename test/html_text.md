@@ -7,3 +7,20 @@ test
 
 
 ></div>
+
+
+# Conclusion:
+
+remark-rehype
+- dangerousHtml: do mdast html survive as raw in hast.
+- characters: text nodes, should <> be escaped
+
+remark-stringiy
+- dangerousHtml: should raw be injected verbratim.
+- characters: text nodes, should <>& be escaped
+
+
+So characters do the same thing (theoretically same chars)
+- the only difference is the node type and the tree they use mdast vs hast
+  
+- the purpose is both remark & rehype plugins may inject dangerous chars and thus there's two phases

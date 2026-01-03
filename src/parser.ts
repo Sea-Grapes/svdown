@@ -165,12 +165,12 @@ export class SvmdParser {
       .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,
-        allowDangerousCharacters: true,
+        // allowDangerousCharacters: true,
       })
       .use(astInspect())
       .use(hastToString, {
         allowDangerousHtml: true,
-        allowDangerousCharacters: true,
+        // allowDangerousCharacters: true,
       })
 
     content = String(parse.processSync(content))

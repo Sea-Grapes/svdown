@@ -712,3 +712,15 @@ Thoughts
 - I think a custom simplified mdast parse for the first phase is beneficial.
     - say I want to remove extra whitespace (replace w/ 1 space) before/after bracket pairs in html elements, to fix html element breaking from having too many newlines. This is a very good feature since it aids user ergonomics. This requires custom parsing because mdast will mark these html elements as text instead (and also things will break like the `>` can turn into blockquote)
     - the reason for this because we kinda don't want to remove whitespace in the text nodes, since whitespace contributes to the text. Really we only want to remove whitespace in the html nodes because they aren't affected by removing whitespace
+
+
+  # Other considerations
+
+  since mdx parses a custom ast, they can do markdown inside html.
+  - is it possible to do this without a custom ast? probably right?
+  - I imagine if somehow I 
+
+  # Step 2: handling custom AST
+
+  What I've realized now is that markdown can't be parsed inside html, because html in mdast is just for pass-through. Mdx turns this into custom AST nodes which is actually a pretty decent way to do it. The downside is that generic remark plugins can't deal with these. The upside is that after remark-rehype it's just html. So then any plugin can work with it then.
+  - I think it's very beneficial to introduce svelteFlow and svelteText nodes. It means I can avoid the first mdast parse and use a custom parse instead. It may also remove some placeholder shenanigans. And it hopefully allows for tight markdown integration.

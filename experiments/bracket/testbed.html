@@ -14,21 +14,36 @@
       id="input"
       class="outline-none border border-zinc-500 p-4 rounded-sm font-mono w-full"
       rows="20"
-    >
-# Hello World</textarea
-    >
+    ></textarea>
+    <div
+      id="output"
+      class="border border-zinc-500 p-4 rounded-sm w-full min-h-[10rem]"
+    ></div>
 
     <script type="module">
       import { unified } from 'https://esm.sh/unified@11'
       import remarkParse from 'https://esm.sh/remark-parse@11'
       import remarkRehype from 'https://esm.sh/remark-rehype@11'
       import rehypeStringify from 'https://esm.sh/rehype-stringify@10'
+      import rehypeRaw from 'https://esm.sh/rehype-raw@7'
       import { visit } from 'https://esm.sh/unist-util-visit@5'
 
       const input = document.getElementById('input')
+      const output = document.getElementById('output')
 
-      input.addEventListener('change', (e) => {
-        parse()
+      input.value = `# Hello world`
+
+      function debounce(fn, delay = 300) {
+        let timer
+        return (...args) => {
+          clearTimeout(timer)
+          timer = setTimeout(() => fn(...args), delay)
+        }
+      }
+
+      const debouncedParse = debounce(() => parse(), 300)
+      input.addEventListener('input', (e) => {
+        debouncedParse()
       })
 
       window.parse = async function () {
@@ -40,8 +55,9 @@
             .use(remarkParse)
             .use(remarkRehype, {
               allowDangerousHtml: true,
-              allowDangerousCharacters: true,
+              // allowDangerousCharacters: true,
             })
+            // .use(rehypeRaw)
             .use(rehypeStringify, {
               allowDangerousHtml: true,
               allowDangerousCharacters: true,
@@ -49,12 +65,18 @@
             })
 
           // Parse to get AST
-          const ast = processor.parse(input.value)
-          console.log(ast)
+          const mdast = processor.parse(input.value)
+          console.log('mdast', mdast)
+
+          const hast = processor.runSync(mdast)
+          console.log('hast', hast)
 
           // Process to HTML
           const result = await processor.process(input.value)
           const html = String(result)
+
+          output.innerHTML = html
+
           console.log(html)
         } catch (error) {
           console.error(error)
@@ -63,6 +85,55 @@
 
       // Parse on load
       parse()
+
+
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return
+
+        e.preventDefault()
+
+        const TAB = '  ' // 2 spaces
+        const start = input.selectionStart
+        const end = input.selectionEnd
+        const value = input.value
+
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1
+        const lineEnd =
+          end === start ? value.indexOf('\n', start) : value.indexOf('\n', end)
+
+        const finalLineEnd = lineEnd === -1 ? value.length : lineEnd
+        const block = value.slice(lineStart, finalLineEnd)
+        const lines = block.split('\n')
+
+        let newBlock
+        let cursorDelta = 0
+
+        if (!e.shiftKey) {
+          newBlock = lines.map((line) => TAB + line).join('\n')
+          cursorDelta = TAB.length
+        } else {
+          newBlock = lines
+            .map((line) => {
+              if (line.startsWith(TAB)) {
+                cursorDelta -= TAB.length
+                return line.slice(TAB.length)
+              }
+              if (line.startsWith('\t')) {
+                cursorDelta -= 1
+                return line.slice(1)
+              }
+              return line
+            })
+            .join('\n')
+        }
+
+        input.value =
+          value.slice(0, lineStart) + newBlock + value.slice(finalLineEnd)
+
+        input.selectionStart = start + cursorDelta
+        input.selectionEnd = end + cursorDelta
+      })
     </script>
   </body>
 </html>

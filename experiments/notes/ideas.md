@@ -709,18 +709,69 @@ Todo:
     - more effort
 
 Thoughts
+
 - I think a custom simplified mdast parse for the first phase is beneficial.
-    - say I want to remove extra whitespace (replace w/ 1 space) before/after bracket pairs in html elements, to fix html element breaking from having too many newlines. This is a very good feature since it aids user ergonomics. This requires custom parsing because mdast will mark these html elements as text instead (and also things will break like the `>` can turn into blockquote)
-    - the reason for this because we kinda don't want to remove whitespace in the text nodes, since whitespace contributes to the text. Really we only want to remove whitespace in the html nodes because they aren't affected by removing whitespace
+  - say I want to remove extra whitespace (replace w/ 1 space) before/after bracket pairs in html elements, to fix html element breaking from having too many newlines. This is a very good feature since it aids user ergonomics. This requires custom parsing because mdast will mark these html elements as text instead (and also things will break like the `>` can turn into blockquote)
+  - the reason for this because we kinda don't want to remove whitespace in the text nodes, since whitespace contributes to the text. Really we only want to remove whitespace in the html nodes because they aren't affected by removing whitespace
+
+# Other considerations
+
+since mdx parses a custom ast, they can do markdown inside html.
+
+- is it possible to do this without a custom ast? probably right?
+- I imagine if somehow I
+
+# Step 2: handling custom AST
+
+What I've realized now is that markdown can't be parsed inside html, because html in mdast is just for pass-through. Mdx turns this into custom AST nodes which is actually a pretty decent way to do it. The downside is that generic remark plugins can't deal with these. The upside is that after remark-rehype it's just html. So then any plugin can work with it then.
+
+- I think it's very beneficial to introduce svelteFlow and svelteText nodes. It means I can avoid the first mdast parse and use a custom parse instead. It may also remove some placeholder shenanigans. And it hopefully allows for tight markdown integration.
+
+# Possible idea
+
+- instead I could use svelte parse again, but first escape things in brackets so that they work, and then restore them in the svast. Basically the same thing but with svast instead. Then connect text + html and parse as markdown.
+- issue is that it's still unclear how to separate the html and markdown. perhaps using comments. but then at that point might as well use a custom thing
+
+Issues:
+
+- html is pass-through, so markdown in html doesn't get parsed
+- I want to render markdown tightly with html
+- can't do string stuff before (removing them) because would remove code blocks
+
+what if I parse html custom-ly, separate it from text with comments. Then the markdown in between gets parsed, but now it doesn't know it's underneath the html in the hast, since that's passthrough. Technically it doesn't need to (it will output ok). But the hast will not be full, like as if rehype-raw did it. Since the html tags will be in raw, not as actual hast.
+
+The main issue w/ unified:
+- html is pass-through. Say you write a custom mdast parse to change this. well, now the html is disconnected from its children in hast (since its raw). (maybe we could remove raw entirely). An alternative would be to introduce a custom ast node to store this. It can make the html have its children in hast. But now this has some issue I forgot (well one issue is it can only be flow or inline which sometimes breaks). 
 
 
-  # Other considerations
+Ideas
 
-  since mdx parses a custom ast, they can do markdown inside html.
-  - is it possible to do this without a custom ast? probably right?
-  - I imagine if somehow I 
+let's think is there a simpler way to parse markdown in html, with tight interleaving.
+* the issue is we want to parse both html & markdown (and svelte!). I know how to handle the svelte things like js expressions, @attach etc. so that's not an issue. Html will only parse markdown in it if its inline/has a blank line. we may want the mdast to have html with its children. This can either be a custom ast or a raw node on either side (I realized remark-rehype is smart and can combine them correctly).
+* so these are the constraints - we want the optimal string, mdast, hast that works w/ the most plugins/usecases as well.
+* mdx approach: solid, only downside is the flow/inline constraints. also harder & more complex to implement
+* technically I could escape html/svelte tags beforehand with like a comment or something, then in mdast replace the text in the html node. then I believe it would get combined by remark-rehype. issue is there would be a paragraph wrapper which is relatively inconvenient to remove. Also then for codeblocks that get html/svelte tags escaped I would have to search for the comments and replace em which is getting hacky. thoughts on this approach (or alternatives similar?) I think it would work & would avoid the html block thing at the downside of some hacks
 
-  # Step 2: handling custom AST
 
-  What I've realized now is that markdown can't be parsed inside html, because html in mdast is just for pass-through. Mdx turns this into custom AST nodes which is actually a pretty decent way to do it. The downside is that generic remark plugins can't deal with these. The upside is that after remark-rehype it's just html. So then any plugin can work with it then.
-  - I think it's very beneficial to introduce svelteFlow and svelteText nodes. It means I can avoid the first mdast parse and use a custom parse instead. It may also remove some placeholder shenanigans. And it hopefully allows for tight markdown integration.
+# idea for tight markdown+html
+
+basically do the same thing as js expressions, but use comment placeholder (with newlines) on html elements. then all markdown gets parsed.
+- then all you have to do is replace the comments with their content in the mdast. Also unwrap p's when necessary. Just based on the tag type - if it's a starting tag, unwrap the one after. 
+
+
+# Magnum Opus (for real this time)
+
+The key idea is:
+- brackets should be in the same node
+- html elements should be in the same node
+
+At a high level it will work like this:
+1. parse html lightly
+2. parse brackets lightly (based on html positions)
+3. parse mdast
+4. restore html & brackets selectively (either right after mdast, or in the final string)
+5. done!
+
+A key quirk that allows this to work:
+- replacing html elements with comments makes markdown parse everywhere. Restoring html into those comments immediately in the mdast effectively mixes markdown with html. Then Html paragraphs can be selectively unwrapped if desired.
+  - note: inline ones should be escaped as well because inline <div>'s won't parse html in them

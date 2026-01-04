@@ -57,7 +57,7 @@
               allowDangerousHtml: true,
               // allowDangerousCharacters: true,
             })
-            // .use(rehypeRaw)
+            .use(rehypeRaw)
             .use(rehypeStringify, {
               allowDangerousHtml: true,
               allowDangerousCharacters: true,
@@ -85,8 +85,6 @@
 
       // Parse on load
       parse()
-
-
 
       input.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return

@@ -157,3 +157,69 @@ function findRegexEnd(str: string, pos: number): number {
 
   return -1 // Not found
 }
+
+export function findHtmlEnd(html: string, pos: number): number {
+  let i = pos + 1
+  let quote: string | null = null
+
+  while (i < html.length) {
+    const char = html[i]
+
+    if (quote) {
+      i = findHtmlStringEnd(html, i - 1, quote)
+      if (i === -1) return -1
+      quote = null
+      i++
+      continue
+    }
+
+    if (char === `"` || char === `'`) {
+      quote = char
+      i++
+      continue
+    }
+
+    if (char === '{') {
+      i = findBracketCore(html, i, false)
+      if (i === -1) return -1
+      i++
+      continue
+    }
+
+    if (char === '>') {
+      return i
+    }
+
+    i++
+  }
+
+  return -1
+}
+
+function findHtmlStringEnd(str: string, pos: number, quote: string): number {
+  let i = pos + 1
+
+  while (i < str.length) {
+    const char = str[i]
+
+    if (char === quote) {
+      return i
+    }
+
+    if (char === '\\') {
+      i += 2
+      continue
+    }
+
+    if (char === '{') {
+      const closingBrace = findBracketCore(str, i, false)
+      if (closingBrace === -1) return -1
+      i = closingBrace + 1
+      continue
+    }
+
+    i++
+  }
+
+  return -1
+}

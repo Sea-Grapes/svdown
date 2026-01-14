@@ -160,21 +160,13 @@ function findRegexEnd(str: string, pos: number): number {
 
 export function findHtmlEnd(html: string, pos: number): number {
   let i = pos + 1
-  let quote: string | null = null
 
   while (i < html.length) {
     const char = html[i]
 
-    if (quote) {
-      i = findHtmlStringEnd(html, i - 1, quote)
+    if (char === '"' || char === "'") {
+      i = findHtmlStringEnd(html, i, char)
       if (i === -1) return -1
-      quote = null
-      i++
-      continue
-    }
-
-    if (char === `"` || char === `'`) {
-      quote = char
       i++
       continue
     }

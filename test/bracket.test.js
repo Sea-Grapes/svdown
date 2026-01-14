@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { findBracketEnd } from '../src/bracket'
+import { findBracketEnd } from '../src/matchers'
 
 // Basic matching tests
 test('simple braces', () => {

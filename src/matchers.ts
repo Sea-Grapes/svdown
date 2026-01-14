@@ -188,7 +188,7 @@ export function findHtmlEnd(html: string, pos: number): number {
   return -1
 }
 
-function findHtmlStringEnd(str: string, pos: number, quote: string): number {
+function findHtmlStringEnd(str: string, pos: number = 0, quote: string): number {
   let i = pos + 1
 
   while (i < str.length) {

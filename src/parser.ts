@@ -5,7 +5,7 @@ import { unified } from 'unified'
 import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import { findBracket, findBracketCore } from './matchers'
+import { findBracket, findBracketCore, findHtmlEnd } from './matchers'
 import { replaceStrSection } from './util'
 import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
@@ -31,7 +31,13 @@ export class SvmdParser {
   async parse(content: string, filename?: string): Promise<any> {
     const html_regex = /<[\w.:]+/g
 
-    // content.match()
+    for(const match of content.matchAll(html_regex)) {
+      const start = match.index
+      const end = findHtmlEnd(content, start)
+      if(end !== -1) {
+        
+      }
+    }
 
     function restoreBrackets() {
       return (tree: Root) => {

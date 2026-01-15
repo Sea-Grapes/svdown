@@ -29,13 +29,25 @@ export class SvmdParser {
   }
 
   async parse(content: string, filename?: string): Promise<any> {
-    const html_regex = /<[\w.:]+/g
+    const html_regex = /<\/?[\w.:]+/g
 
-    for(const match of content.matchAll(html_regex)) {
+    let html = []
+
+    for (const match of content.matchAll(html_regex)) {
       const start = match.index
       const end = findHtmlEnd(content, start)
-      if(end !== -1) {
-        
+      const text = content.slice(start, end + 1)
+      const isClosing = text.startsWith('</')
+      const isSelfClosing = text.endsWith('/>')
+
+      if (end !== -1) {
+        html.push({
+          start,
+          end,
+          text,
+          isClosing,
+          isSelfClosing,
+        })
       }
     }
 

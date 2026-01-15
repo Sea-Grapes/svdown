@@ -51,6 +51,8 @@ export class SvmdParser {
       }
     }
 
+    console.log(html)
+
     function restoreBrackets() {
       return (tree: Root) => {
         visit(tree, ['text', 'html'], (node: Node) => {

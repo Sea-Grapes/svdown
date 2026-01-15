@@ -5,7 +5,7 @@ import { parse as svparse } from 'svelte/compiler'
 
 console.log('running basic test')
 
-let name = 'html_text.md'
+let name = 'html_new.md'
 
 let f
 try {
@@ -17,13 +17,14 @@ try {
 }
 
 let res = await parse(f)
+console.log('preprocess succeeded')
 
 try {
   svparse(res.code)
-  console.log('parse succeeded')
+  console.log('Svelte render succeeded')
 } catch (e) {
   // console.log(e)
-  console.log(`\nparse error at ${e.position[0]}:`)
+  console.log(`\nSvelte render error at ${e.position[0]}:`)
   console.log(e.frame)
 }
 

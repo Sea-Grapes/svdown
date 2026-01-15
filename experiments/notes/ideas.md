@@ -786,3 +786,20 @@ Key quirks that help this:
 Detailed procedure
 1. Going through each character in the string, look for `<word` or `</word` formats
   - 
+
+
+# Notes
+
+
+You can do this in hast, I think it will use hname to stringify.
+- also note that rehype-stringify can stringify any html element tagname (any characters)
+```
+{
+  type: 'svelteElement',
+  tagName: 'T.PerspectiveCamera',  // or 'svelte:element', whatever
+  children: [...],
+  data: {
+    hName: 'T.PerspectiveCamera'  // for mdast-util-to-hast
+  }
+}
+```

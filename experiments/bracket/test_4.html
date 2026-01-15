@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>rehype-stringify console test</title>
+  </head>
+  <body>
+    <script type="module">
+      import { unified } from 'https://esm.sh/unified@11'
+      import rehypeStringify from 'https://esm.sh/rehype-stringify@10'
+
+      const tagNames = [
+        'T.PerspectiveCamera',
+        'foo:bar',
+        '💥',
+        '你好',
+        'a b',
+        '<script>',
+        'custom-element',
+        '123',
+        'ಠ_ಠ',
+      ]
+
+      const processor = unified().use(rehypeStringify)
+
+      console.group('rehype-stringify tagName tests')
+
+      for (const tagName of tagNames) {
+        const tree = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName,
+              properties: { test: 'ok' },
+              children: [{ type: 'text', value: 'Hello' }],
+            },
+          ],
+        }
+
+        try {
+          const html = processor.stringify(tree)
+          console.log({
+            tagName,
+            stringified: html,
+          })
+        } catch (err) {
+          console.error({
+            tagName,
+            error: err.message,
+          })
+        }
+      }
+
+      console.groupEnd()
+    </script>
+  </body>
+</html>

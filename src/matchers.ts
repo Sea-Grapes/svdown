@@ -218,6 +218,8 @@ export function parseSvelteElement(
         jsBrackets,
       }
     }
+
+    i++
   }
 
   return null

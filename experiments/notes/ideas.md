@@ -803,3 +803,14 @@ You can do this in hast, I think it will use hname to stringify.
   }
 }
 ```
+
+# HTML Parsing: Optimal approach & considerations
+
+Some things to note:
+- Inline html must be replaced as well, since markdown only parses a few types of inline html. For example this should be placeholded:
+```html
+<div>this should be **bold**</div>
+```
+- when placeholding html need to ensure comments are on their own line, maybe by checking the stuff before it
+
+For general html (not svelte) this could be utilized as well

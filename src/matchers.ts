@@ -245,35 +245,3 @@ export function parseSvelteElement(
 
   return null
 }
-
-function findHtmlStringEnd(
-  str: string,
-  pos: number = 0,
-  quote: string
-): number {
-  let i = pos + 1
-
-  while (i < str.length) {
-    const char = str[i]
-
-    if (char === quote) {
-      return i
-    }
-
-    if (char === '\\') {
-      i += 2
-      continue
-    }
-
-    if (char === '{') {
-      const closingBrace = findBracketCore(str, i, false)
-      if (closingBrace === -1) return -1
-      i = closingBrace + 1
-      continue
-    }
-
-    i++
-  }
-
-  return -1
-}

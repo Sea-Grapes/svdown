@@ -171,6 +171,7 @@ interface SvelteElementData {
   isClosing: boolean
   isSelfClosing: boolean
   jsBrackets: JsBracket[]
+  tagName: string
 }
 
 export function parseSvelteElement(
@@ -230,6 +231,10 @@ export function parseSvelteElement(
       const isClosing = text.startsWith('</')
       const isSelfClosing = text.endsWith('/>')
 
+      // doing this here for purity
+      const tagMatch = text.match(/<\/?([^\s/>]+)/)
+      const tagName = tagMatch?.[1] ? tagMatch[1] : ''
+
       return {
         start,
         end,
@@ -237,6 +242,7 @@ export function parseSvelteElement(
         isClosing,
         isSelfClosing,
         jsBrackets,
+        tagName,
       }
     }
 

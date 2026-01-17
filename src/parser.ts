@@ -32,15 +32,41 @@ export class SvmdParser {
     const html_regex = /<\/?[\w.:]+/g
 
     let html = []
+    let text = []
 
     console.log('here')
     for (const match of content.matchAll(html_regex)) {
-      const pos = match.index
-      let element = parseSvelteElement(content, pos)
-      if (element) html.push(element)
+      const element = parseSvelteElement(content, match.index)
+      if (element) {
+        html.push(element)
+      }
     }
 
+    let lastEnd = -1
+
+    html.forEach((node) => {
+      if (node.start > lastEnd + 1) {
+        text.push({
+          start: lastEnd + 1,
+          end: node.start - 1,
+          text: content.slice(lastEnd + 1, node.start),
+        })
+      }
+      lastEnd = node.end
+    })
+
+    if (lastEnd < content.length - 1) {
+      text.push({
+        start: lastEnd + 1,
+        end: content.length - 1,
+        text: content.slice(lastEnd + 1),
+      })
+    }
+
+    console.log('\nhtml:')
     console.log(JSON.stringify(html, null, 2))
+    console.log('\text:')
+    console.log(text)
 
     function restoreBrackets() {
       return (tree: Root) => {

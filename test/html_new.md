@@ -1,6 +1,4 @@
-
-
-<button onclick={() => {
+<button {@attach test()} onclick={() => {
   console.log('test')
 
   /aweoif/g

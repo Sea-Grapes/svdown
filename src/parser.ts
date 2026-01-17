@@ -40,7 +40,7 @@ export class SvmdParser {
       if (element) html.push(element)
     }
 
-    console.log(html)
+    console.log(JSON.stringify(html, null, 2))
 
     function restoreBrackets() {
       return (tree: Root) => {

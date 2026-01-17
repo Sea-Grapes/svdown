@@ -5,7 +5,7 @@ import { unified } from 'unified'
 import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import { findBracket, findBracketCore, findHtmlEnd } from './matchers'
+import { findBracket, findBracketCore, parseSvelteElement } from './matchers'
 import { replaceStrSection } from './util'
 import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
@@ -33,22 +33,12 @@ export class SvmdParser {
 
     let html = []
 
+    console.log('here')
     for (const match of content.matchAll(html_regex)) {
-      const start = match.index
-      const end = findHtmlEnd(content, start)
-      const text = content.slice(start, end + 1)
-      const isClosing = text.startsWith('</')
-      const isSelfClosing = text.endsWith('/>')
-
-      if (end !== -1) {
-        html.push({
-          start,
-          end,
-          text,
-          isClosing,
-          isSelfClosing,
-        })
-      }
+      console.log('parsing a thingy')
+      const pos = match.index
+      let element = parseSvelteElement(content, pos)
+      if (element) html.push(element)
     }
 
     console.log(html)

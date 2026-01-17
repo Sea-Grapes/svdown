@@ -158,6 +158,106 @@ function findRegexEnd(str: string, pos: number): number {
   return -1 // Not found
 }
 
+interface JsBracket {
+  start: number
+  end: number
+  text: string
+}
+
+interface SvelteElementData {
+  start: number
+  end: number
+  text: string
+  isClosing: boolean
+  isSelfClosing: boolean
+  jsBrackets: JsBracket[]
+}
+
+export function parseSvelteElement(
+  string: string,
+  pos: number
+): SvelteElementData | null {
+  if (string[pos] !== '<') return null
+  let i = pos + 1
+
+  const jsBrackets: JsBracket[] = []
+
+  while (i < string.length) {
+    const char = string[i]
+
+    if (char === '"' || char === "'") {
+      i = findHtmlStringEnd(string, i, char)
+      if (i === -1) return null
+      i++
+      continue
+    }
+
+    if (char === '{') {
+      const start = i
+      i = findBracketCore(string, i, false)
+      if (i === -1) return null
+      jsBrackets.push({ start, end: i, text: string.slice(start, i + 1) })
+      i++
+      continue
+    }
+
+    if (char === '>') {
+      const start = pos
+      const end = i
+
+      const text = string.slice(start, end + 1)
+      const isClosing = text.startsWith('</')
+      const isSelfClosing = text.endsWith('/>')
+
+      return {
+        start,
+        end,
+        text,
+        isClosing,
+        isSelfClosing,
+        jsBrackets,
+      }
+    }
+  }
+
+  return null
+}
+
+function findHtmlStringEnd(
+  str: string,
+  pos: number = 0,
+  quote: string
+): number {
+  let i = pos + 1
+
+  while (i < str.length) {
+    const char = str[i]
+
+    if (char === quote) {
+      return i
+    }
+
+    if (char === '\\') {
+      i += 2
+      continue
+    }
+
+    if (char === '{') {
+      const closingBrace = findBracketCore(str, i, false)
+      if (closingBrace === -1) return -1
+      i = closingBrace + 1
+      continue
+    }
+
+    i++
+  }
+
+  return -1
+}
+
+/**
+ * @deprecated use parseSvelteElement instead
+ */
 export function findHtmlEnd(html: string, pos: number): number {
   let i = pos + 1
 
@@ -180,34 +280,6 @@ export function findHtmlEnd(html: string, pos: number): number {
 
     if (char === '>') {
       return i
-    }
-
-    i++
-  }
-
-  return -1
-}
-
-function findHtmlStringEnd(str: string, pos: number = 0, quote: string): number {
-  let i = pos + 1
-
-  while (i < str.length) {
-    const char = str[i]
-
-    if (char === quote) {
-      return i
-    }
-
-    if (char === '\\') {
-      i += 2
-      continue
-    }
-
-    if (char === '{') {
-      const closingBrace = findBracketCore(str, i, false)
-      if (closingBrace === -1) return -1
-      i = closingBrace + 1
-      continue
     }
 
     i++

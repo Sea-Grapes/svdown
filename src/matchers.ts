@@ -178,26 +178,47 @@ export function parseSvelteElement(
   pos: number
 ): SvelteElementData | null {
   if (string[pos] !== '<') return null
-  let i = pos + 1
 
+  let i = pos + 1
   const jsBrackets: JsBracket[] = []
 
   while (i < string.length) {
     const char = string[i]
 
     if (char === '"' || char === "'") {
-      i = findHtmlStringEnd(string, i, char)
-      if (i === -1) return null
+      const quote = char
       i++
-      continue
+
+      while (i < string.length) {
+        const char = string[i]
+        if (char === quote) break
+
+        if (char === '\\') {
+          i += 2
+          continue
+        }
+
+        if (char === '{') {
+          const start = i
+          const end = findBracketCore(string, i, false)
+
+          if (end !== -1) {
+            jsBrackets.push({ start, end, text: string.slice(start, end + 1) })
+            i = end + 1
+          } else i++
+          continue
+        }
+      }
     }
 
     if (char === '{') {
       const start = i
-      i = findBracketCore(string, i, false)
-      if (i === -1) return null
-      jsBrackets.push({ start, end: i, text: string.slice(start, i + 1) })
-      i++
+      const end = findBracketCore(string, i, false)
+
+      if (end !== -1) {
+        jsBrackets.push({ start, end, text: string.slice(start, end + 1) })
+        i = end + 1
+      } else i++
       continue
     }
 
@@ -249,39 +270,6 @@ function findHtmlStringEnd(
       if (closingBrace === -1) return -1
       i = closingBrace + 1
       continue
-    }
-
-    i++
-  }
-
-  return -1
-}
-
-/**
- * @deprecated use parseSvelteElement instead
- */
-export function findHtmlEnd(html: string, pos: number): number {
-  let i = pos + 1
-
-  while (i < html.length) {
-    const char = html[i]
-
-    if (char === '"' || char === "'") {
-      i = findHtmlStringEnd(html, i, char)
-      if (i === -1) return -1
-      i++
-      continue
-    }
-
-    if (char === '{') {
-      i = findBracketCore(html, i, false)
-      if (i === -1) return -1
-      i++
-      continue
-    }
-
-    if (char === '>') {
-      return i
     }
 
     i++

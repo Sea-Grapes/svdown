@@ -35,7 +35,6 @@ export class SvmdParser {
 
     console.log('here')
     for (const match of content.matchAll(html_regex)) {
-      console.log('parsing a thingy')
       const pos = match.index
       let element = parseSvelteElement(content, pos)
       if (element) html.push(element)

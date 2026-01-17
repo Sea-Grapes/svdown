@@ -10,7 +10,7 @@ export function findBracket(str: string, pos: number) {
 export function findBracketCore(
   str: string,
   pos: number,
-  first = false
+  first = false,
 ): number {
   if (str[pos] !== '{') {
     return -1
@@ -162,6 +162,8 @@ interface JsBracket {
   start: number
   end: number
   text: string
+  localStart: number
+  localEnd: number
 }
 
 interface SvelteElementData {
@@ -176,7 +178,7 @@ interface SvelteElementData {
 
 export function parseSvelteElement(
   string: string,
-  pos: number
+  pos: number,
 ): SvelteElementData | null {
   if (string[pos] !== '<') return null
 
@@ -202,9 +204,17 @@ export function parseSvelteElement(
         if (char === '{') {
           const start = i
           const end = findBracketCore(string, i, false)
+          const localStart = start - pos
+          const localEnd = end - pos
 
           if (end !== -1) {
-            jsBrackets.push({ start, end, text: string.slice(start, end + 1) })
+            jsBrackets.push({
+              start,
+              end,
+              localStart,
+              localEnd,
+              text: string.slice(start, end + 1),
+            })
             i = end + 1
           } else i++
           continue
@@ -215,9 +225,17 @@ export function parseSvelteElement(
     if (char === '{') {
       const start = i
       const end = findBracketCore(string, i, false)
+      const localStart = start - pos
+      const localEnd = end - pos
 
       if (end !== -1) {
-        jsBrackets.push({ start, end, text: string.slice(start, end + 1) })
+        jsBrackets.push({
+          start,
+          end,
+          localStart,
+          localEnd,
+          text: string.slice(start, end + 1),
+        })
         i = end + 1
       } else i++
       continue

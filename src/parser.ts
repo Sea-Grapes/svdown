@@ -13,7 +13,7 @@ import { inspect } from 'unist-util-inspect'
 
 export async function parse(
   content: string,
-  { config, filename }: { config?: PluginConfig; filename?: string } = {}
+  { config, filename }: { config?: PluginConfig; filename?: string } = {},
 ): Promise<string> {
   const parser = new SvmdParser(config)
   let res = await parser.parse(content, filename)
@@ -32,7 +32,6 @@ export class SvmdParser {
     const html_regex = /<\/?[\w.:]+/g
 
     let html = []
-    let text = []
 
     console.log('here')
     for (const match of content.matchAll(html_regex)) {
@@ -42,35 +41,29 @@ export class SvmdParser {
       }
     }
 
-    let lastEnd = -1
-
-    html.forEach((node) => {
-      if (node.start > lastEnd + 1) {
-        text.push({
-          start: lastEnd + 1,
-          end: node.start - 1,
-          text: content.slice(lastEnd + 1, node.start),
-        })
-      }
-      lastEnd = node.end
+    // replacing w/ comments allows markdown to parse inside html
+    html.toReversed().forEach((node, i) => {
+      content = replaceStrSection(
+        content,
+        node.start,
+        node.end + 1,
+        `\n<!--svdown-${html.length - 1 - i}-->\n`,
+      )
     })
 
-    if (lastEnd < content.length - 1) {
-      text.push({
-        start: lastEnd + 1,
-        end: content.length - 1,
-        text: content.slice(lastEnd + 1),
-      })
-    }
+    // console.log('\nhtml:')>
+    // console.log(JSON.stringify(html, null, 2))
 
-    console.log('\nhtml:')
-    console.log(JSON.stringify(html, null, 2))
-    console.log('\text:')
-    console.log(text)
-
-    function restoreBrackets() {
+    function restoreSvelte() {
       return (tree: Root) => {
         visit(tree, ['text', 'html'], (node: Node) => {
+          if ('value' in node && typeof node.value === 'string') {
+            const match = node.value.match(/<!--svdown-(\d+)-->/)
+            if(match) {
+
+            }
+          }
+
           if (
             node.type === 'text' &&
             'value' in node &&
@@ -90,7 +83,7 @@ export class SvmdParser {
 
     const parse = unified()
       .use(toMdast)
-      .use(restoreBrackets)
+      .use(restoreSvelte)
       .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,
@@ -101,6 +94,8 @@ export class SvmdParser {
         allowDangerousHtml: true,
         // allowDangerousCharacters: true,
       })
+
+    content = String(await parse.process(content))
 
     return {
       code: content,

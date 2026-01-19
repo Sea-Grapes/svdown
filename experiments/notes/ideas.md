@@ -777,22 +777,23 @@ At a high level it will work like this:
 Key quirks that help this:
 
 - replacing html elements with comments makes markdown parse everywhere. Restoring html into those comments immediately in the mdast effectively mixes markdown tightly with html. Then html paragraphs can be selectively unwrapped if desired.
-
   - note: inline ones should be escaped as well because inline <div>'s won't parse html in them
 
 - replacing everything in brackets with an alphanumeric string, based on simple js bracket matching rules, fixes svelte's js expressions, while playing nice with latex or other extensions
   - can be optimized by avoiding code blocks? Maybe add this as well (simple enough to parse)
 
 Detailed procedure
-1. Going through each character in the string, look for `<word` or `</word` formats
-  - 
 
+1. Going through each character in the string, look for `<word` or `</word` formats
+
+-
 
 # Notes
 
-
 You can do this in hast, I think it will use hname to stringify.
+
 - also note that rehype-stringify can stringify any html element tagname (any characters)
+
 ```
 {
   type: 'svelteElement',
@@ -807,10 +808,25 @@ You can do this in hast, I think it will use hname to stringify.
 # HTML Parsing: Optimal approach & considerations
 
 Some things to note:
+
 - Inline html must be replaced as well, since markdown only parses a few types of inline html. For example this should be placeholded:
+
 ```html
 <div>this should be **bold**</div>
 ```
+
 - when placeholding html need to ensure comments are on their own line, maybe by checking the stuff before it
 
 For general html (not svelte) this could be utilized as well
+
+## 1/19/26 Status
+
+Evaluate best approach:
+
+- perhaps micromark would work as well? The only downsides I can think of at the moment are no inline->block things. Pro is it doesn't need placeholders.
+  - say we add a bracket matcher to handle inline js expressions. I think because the pipeline runs at once, I think latex will run first, and then this will run after. (Could be wrong)
+  - possible downside is that there are limitations I have yet to think of
+
+- sticking with the placeholder version: It allows for breaking inline/block thing.
+  - downside it requires placeholders may not be as "professional"
+  - I think it's safer for brackets at least, because in a unified pipeline plugins are based on order precedence I think. So if someone had a random plugin that parsed brackets and we ran plugins before js bracket thingy, it might intefere. Of course this might not be a big issue but idk.

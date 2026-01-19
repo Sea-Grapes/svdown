@@ -12,106 +12,6 @@
       import { micromark } from 'https://esm.sh/micromark@4?bundle'
       import { fromMarkdown } from 'https://esm.sh/mdast-util-from-markdown@2?bundle'
 
-      // Simplified Svelte element parser (from your code)
-      function findBracketCore(str, pos, first = false) {
-        if (str[pos] !== '{') return -1
-        let i = pos + 1
-
-        if (first) {
-          const next = str[i]
-          if (next === '#' || next === ':' || next === '/' || next === '@') {
-            i++
-          }
-        }
-
-        let depth = 1
-
-        while (i < str.length && depth > 0) {
-          const char = str[i]
-
-          switch (char) {
-            case '"':
-            case "'":
-            case '`':
-              i = findStringEnd(str, i, char)
-              if (i === -1) return -1
-              i++
-              continue
-
-            case '/': {
-              const next = str[i + 1]
-              if (next === '/') {
-                i = str.indexOf('\n', i + 2)
-                if (i === -1) return -1
-                i++
-                continue
-              }
-              if (next === '*') {
-                i = str.indexOf('*/', i + 2)
-                if (i === -1) return -1
-                i += 2
-                continue
-              }
-              i = findRegexEnd(str, i)
-              if (i === -1) return -1
-              i++
-              continue
-            }
-
-            case '{':
-              depth++
-              i++
-              continue
-
-            case '}':
-              depth--
-              if (depth === 0) return i
-              i++
-              continue
-
-            default:
-              i++
-          }
-        }
-
-        return -1
-      }
-
-      function findStringEnd(str, pos, quote) {
-        let i = pos + 1
-        while (i < str.length) {
-          const char = str[i]
-          if (char === quote) return i
-          if (char === '\\') {
-            i += 2
-            continue
-          }
-          if (quote === '`' && char === '$' && str[i + 1] === '{') {
-            const closingBrace = findBracketCore(str, i + 1, false)
-            if (closingBrace === -1) return -1
-            i = closingBrace + 1
-            continue
-          }
-          if (quote !== '`' && char === '\n') return -1
-          i++
-        }
-        return -1
-      }
-
-      function findRegexEnd(str, pos) {
-        let i = pos + 1
-        while (i < str.length) {
-          const char = str[i]
-          if (char === '/') return i
-          if (char === '\\') {
-            i += 2
-            continue
-          }
-          i++
-        }
-        return -1
-      }
-
       // Micromark extension for HTML tags
       function htmlTagExtension() {
         return {
@@ -417,6 +317,8 @@
         '<div>**bold**</div>',
         'text <span class={foo}>inline</span> more',
         '<div>\n\n**bold**\n\n</div>',
+        `<div onclick={(e) => {\n  const html = "<!-- not a comment -->"\n  const code = "// not a real comment"
+         const block = "/* also not */ real"\n alert(\`<div>also not html</div>\`) \n}}>Content</div>`,
       ]
 
       console.log('=== Testing Micromark HTML Extension ===\n')
@@ -438,25 +340,36 @@
         }
       }
 
+      const catch_errors = false
+
+      async function process(test) {
+        const pipe = unified()
+          .use(stringToMdast)
+          .use(remarkHtmlTag)
+          .use(mdastToHast, { allowDangerousHtml: true })
+          .use(hastToString, { allowDangerousHtml: true })
+
+        const html = (await pipe.process(test)).toString()
+        const mdast = pipe.parse(test)
+
+        console.log('HTML output:', html)
+        // console.log(mdast)
+        console.log('Tree:', JSON.stringify(mdast, null, 2))
+        console.log('---\n')
+      }
+
       for await (const test of tests) {
         console.count('Test')
         console.log('Input:', test)
-        try {
-          const pipe = unified()
-            .use(stringToMdast)
-            .use(remarkHtmlTag)
-            .use(mdastToHast, { allowDangerousHtml: true })
-            .use(hastToString, { allowDangerousHtml: true })
 
-          const html = (await pipe.process(test)).toString()
-          const mdast = pipe.parse(test)
-
-          console.log('HTML output:', html)
-          // console.log(mdast)
-          console.log('Tree:', JSON.stringify(mdast, null, 2))
-          console.log('---\n')
-        } catch (err) {
-          console.error('Error:', err.message)
+        if (catch_errors) {
+          try {
+            await process(test)
+          } catch (err) {
+            console.error('Error:', err.message)
+          }
+        } else {
+          await process(test)
         }
       }
     </script>

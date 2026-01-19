@@ -619,11 +619,10 @@ For the rest of it:
 
 Things that break md:
 
-- custom els <svelte:element>
-- js attrs <html onclick={()=>{}}>
-- attach <div {@attach}>
-- js expressions {count > 5}
-- logic {#each}
+- custom elements like <svelte:element>, <T.PerspectiveCamera>
+- js attributes on html <html onclick={()=>{}}> <div {@attach thing()}>
+- inline js expressions {count > 5}
+- svelte logic blocks {#each}
 
 Possible solutions:
 

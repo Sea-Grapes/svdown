@@ -829,3 +829,24 @@ Evaluate best approach:
 - sticking with the placeholder version: It allows for breaking inline/block thing.
   - downside it requires placeholders may not be as "professional"
   - I think it's safer for brackets at least, because in a unified pipeline plugins are based on order precedence I think. So if someone had a random plugin that parsed brackets and we ran plugins before js bracket thingy, it might intefere. Of course this might not be a big issue but idk.
+
+
+# CONCLUSION (FOR REAL THIS TIME)
+
+JS expressions probably cannot use micromark extension, works way better with placeholding.
+
+for example this would very likely not work (I tested it and it didn't work)
+```html
+this is inline <div onclick={
+  
+}>
+
+
+this is inline <div
+onclick={...}
+  *this blank line will break*
+>
+```
+
+JS expressions, its probably smarter to placehold (It will just avoid a lot of hassle). This covers 3 of the 4 cases:
+- inline js, js inside logic blocks (logic blocks as a whole), js expressions in html

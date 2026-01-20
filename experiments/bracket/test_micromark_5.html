@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Micromark HTML Extension Test</title>
+  </head>
+  <body>
+    <h1>Check Console for Output</h1>
+
+    <script type="module">
+      import { micromark } from 'https://esm.sh/micromark@4?bundle'
+      import { fromMarkdown } from 'https://esm.sh/mdast-util-from-markdown@2?bundle'
+
+      // ============================================================================
+      // Shared JS parsing utilities
+      // ============================================================================
+
+      const ch = (str) => str.charCodeAt(0)
+
+      function createJSParser(ctx) {
+        const { effects, nok } = ctx
+
+        function consume(code) {
+          if (code === null) return
+          effects.consume(code)
+        }
+
+        function inString(quote, next) {
+          return function currentString(code) {
+            if (code === null) return nok(code)
+            consume(code)
+
+            // Closing quote
+            if (code === quote) return next
+
+            // Escape sequence
+            if (code === ch('\\')) {
+              return afterEscape(currentString)
+            }
+
+            // Template literal interpolation
+            if (quote === ch('`') && code === ch('$')) {
+              return maybeTemplateInterpolation(quote, next)
+            }
+
+            return currentString
+          }
+        }
+
+        function maybeTemplateInterpolation(quote, next) {
+          return function (code) {
+            if (code === ch('{')) {
+              consume(code)
+              ctx.depth++
+              return inBracket(inString(quote, next))
+            }
+            // Not interpolation, continue string
+            return inString(quote, next)(code)
+          }
+        }
+
+        function inBracket(returnTo) {
+          return function (code) {
+            if (code === null) return nok(code)
+
+            // Nested bracket
+            if (code === ch('{')) {
+              ctx.depth++
+              consume(code)
+              return inBracket(returnTo)
+            }
+
+            // Closing bracket
+            if (code === ch('}')) {
+              ctx.depth--
+              consume(code)
+              if (ctx.depth === 0) {
+                return returnTo
+              }
+              return inBracket(returnTo)
+            }
+
+            // String literals
+            if (code === ch('"') || code === ch("'") || code === ch('`')) {
+              consume(code)
+              return inString(code, inBracket(returnTo))
+            }
+
+            // Comments or regex
+            if (code === ch('/')) {
+              consume(code)
+              return afterSlash(returnTo)
+            }
+
+            consume(code)
+            return inBracket(returnTo)
+          }
+        }
+
+        function afterSlash(returnTo) {
+          return function (code) {
+            if (code === ch('/')) {
+              // '//' line comment
+              consume(code)
+              return inLineComment(returnTo)
+            }
+
+            if (code === ch('*')) {
+              // '/*' block comment
+              consume(code)
+              return inBlockComment(returnTo)
+            }
+
+            // Regex or division - for simplicity, treat as regex
+            return inRegex(returnTo)(code)
+          }
+        }
+
+        function inLineComment(returnTo) {
+          return function (code) {
+            if (code === null) return nok(code)
+            consume(code)
+            if (code === ch('\n')) {
+              return returnTo
+            }
+            return inLineComment(returnTo)
+          }
+        }
+
+        function inBlockComment(returnTo) {
+          return function (code) {
+            if (code === null) return nok(code)
+            consume(code)
+            if (code === ch('*')) {
+              return afterBlockCommentStar(returnTo)
+            }
+            return inBlockComment(returnTo)
+          }
+        }
+
+        function afterBlockCommentStar(returnTo) {
+          return function (code) {
+            if (code === ch('/')) {
+              consume(code)
+              return returnTo
+            }
+            return inBlockComment(returnTo)(code)
+          }
+        }
+
+        function inRegex(returnTo) {
+          return function (code) {
+            if (code === null) return nok(code)
+
+            if (code === ch('\\')) {
+              consume(code)
+              return afterEscape(inRegex(returnTo))
+            }
+
+            consume(code)
+
+            if (code === ch('/')) {
+              return returnTo
+            }
+
+            return inRegex(returnTo)
+          }
+        }
+
+        function afterEscape(next) {
+          return function (code) {
+            if (code === null) return nok(code)
+            consume(code)
+            return next
+          }
+        }
+
+        return {
+          inString,
+          inBracket,
+          afterSlash,
+          inLineComment,
+          inBlockComment,
+          inRegex,
+          afterEscape,
+        }
+      }
+
+      // ============================================================================
+      // HTML Tag Extension
+      // ============================================================================
+
+      function htmlTagExtension() {
+        return {
+          flow: { [ch('<')]: { tokenize: tokenizeHtmlTag } },
+          text: { [ch('<')]: { tokenize: tokenizeHtmlTag } },
+        }
+      }
+
+      function tokenizeHtmlTag(effects, ok, nok) {
+        const ctx = { effects, nok, depth: 0, returnTo: insideTag }
+        const jsParser = createJSParser(ctx)
+
+        return start
+
+        function start(code) {
+          if (code !== ch('<')) return nok(code)
+          effects.enter('htmlTag')
+          effects.consume(code)
+          return afterOpen
+        }
+
+        function afterOpen(code) {
+          if (code === null) return nok(code)
+
+          // Closing tag
+          if (code === ch('/')) {
+            effects.consume(code)
+            return insideTag
+          }
+
+          return insideTag(code)
+        }
+
+        function insideTag(code) {
+          if (code === null) return nok(code)
+
+          // String attribute value
+          if (code === ch('"') || code === ch("'")) {
+            effects.consume(code)
+            return jsParser.inString(code, insideTag)
+          }
+
+          // JS expression in attribute
+          if (code === ch('{')) {
+            effects.consume(code)
+            ctx.depth = 1
+            return jsParser.inBracket(insideTag)
+          }
+
+          // End of tag
+          if (code === ch('>')) {
+            effects.consume(code)
+            effects.exit('htmlTag')
+            return ok
+          }
+
+          // Regular character
+          effects.consume(code)
+          return insideTag
+        }
+      }
+
+      function htmlTagFromMarkdown() {
+        return {
+          enter: {
+            htmlTag(token) {
+              this.enter(
+                {
+                  type: 'html',
+                  value: this.sliceSerialize(token),
+                },
+                token,
+              )
+            },
+          },
+          exit: {
+            htmlTag(token) {
+              this.exit(token)
+            },
+          },
+        }
+      }
+
+      // ============================================================================
+      // Svelte Block Extension
+      // ============================================================================
+
+      function svelteBlockExtension() {
+        return {
+          flow: { [ch('{')]: { tokenize: tokenizeSvelteBlock } },
+          text: { [ch('{')]: { tokenize: tokenizeSvelteBlock } },
+        }
+      }
+
+      function tokenizeSvelteBlock(effects, ok, nok) {
+        const ctx = { effects, nok, depth: 0, returnTo: inside }
+        const jsParser = createJSParser(ctx)
+
+        return start
+
+        function start(code) {
+          if (code !== ch('{')) return nok(code)
+          effects.enter('svelteBlock')
+          effects.consume(code)
+          ctx.depth = 1
+          return afterBrace
+        }
+
+        function afterBrace(code) {
+          // Check for Svelte block markers: #, :, /, @
+          if (
+            code === ch('#') ||
+            code === ch(':') ||
+            code === ch('/') ||
+            code === ch('@')
+          ) {
+            effects.consume(code)
+            return inside
+          }
+          return nok(code)
+        }
+
+        function inside(code) {
+          if (code === null) return nok(code)
+
+          // Nested bracket
+          if (code === ch('{')) {
+            ctx.depth++
+            effects.consume(code)
+            return inside
+          }
+
+          // Closing bracket
+          if (code === ch('}')) {
+            ctx.depth--
+            effects.consume(code)
+            if (ctx.depth === 0) {
+              effects.exit('svelteBlock')
+              return ok
+            }
+            return inside
+          }
+
+          // String literals
+          if (code === ch('"') || code === ch("'") || code === ch('`')) {
+            effects.consume(code)
+            return jsParser.inString(code, inside)
+          }
+
+          // Comments or regex
+          if (code === ch('/')) {
+            effects.consume(code)
+            return jsParser.afterSlash(inside)(code)
+          }
+
+          effects.consume(code)
+          return inside
+        }
+      }
+
+      function svelteBlockFromMarkdown() {
+        return {
+          enter: {
+            svelteBlock(token) {
+              this.enter(
+                {
+                  type: 'html',
+                  value: this.sliceSerialize(token),
+                },
+                token,
+              )
+            },
+          },
+          exit: {
+            svelteBlock(token) {
+              this.exit(token)
+            },
+          },
+        }
+      }
+
+      // Test cases
+      const tests = [
+        '<div>',
+        '</div>',
+        '<div class="foo">',
+        '<input type="text" />',
+        '<svelte:element>',
+        '<T.perspectiveCamera />',
+        '<div onclick={handler}>',
+        '<div class={true && "active"}>',
+        '<div data-value={`template ${x}`}>',
+        `<div onclick={() => { console.log("hi") }}>`,
+        '<div>**bold**</div>',
+        'text <span class={foo}>inline</span> more',
+        '<div>\n\n**bold**\n\n</div>',
+        `<div> \n\n  **test**\ne</div>`,
+        //`<div onclick={(e) => {\n  const html = "<!-- not a comment -->"\n  const code = "// not a real comment"
+        // const block = "/* also not */ real"\n alert(\`<div>also not html</div>\`) \n}}>Content</div>`,
+      ]
+
+      console.log('=== Testing Micromark HTML Extension ===\n')
+
+      import { unified } from 'https://esm.sh/unified@11?bundle'
+      import stringToMdast from 'https://esm.sh/remark-parse@11?bundle'
+      import mdastToHast from 'https://esm.sh/remark-rehype@11?bundle'
+      import hastToString from 'https://esm.sh/rehype-stringify@10?bundle'
+
+      function remarkSvelte() {
+        const data = this.data()
+
+        add('micromarkExtensions', htmlTagExtension())
+        add('micromarkExtensions', svelteBlockExtension())
+        add('fromMarkdownExtensions', htmlTagFromMarkdown())
+        add('fromMarkdownExtensions', svelteBlockFromMarkdown())
+
+        function add(field, value) {
+          const list = data[field] ? data[field] : (data[field] = [])
+          list.push(value)
+        }
+      }
+
+      const catch_errors = false
+
+      async function process(test) {
+        const pipe = unified()
+          .use(stringToMdast)
+          .use(remarkSvelte)
+          .use(mdastToHast, { allowDangerousHtml: true })
+          .use(hastToString, { allowDangerousHtml: true })
+
+        const html = (await pipe.process(test)).toString()
+        const mdast = pipe.parse(test)
+
+        console.log('HTML output:', html)
+        // console.log(mdast)
+        console.log('Tree:', JSON.stringify(mdast, null, 2))
+        console.log('---\n')
+      }
+
+      for await (const test of tests) {
+        console.count('Test')
+        console.log('Input:', test)
+
+        if (catch_errors) {
+          try {
+            await process(test)
+          } catch (err) {
+            console.error('Error:', err.message)
+          }
+        } else {
+          await process(test)
+        }
+      }
+    </script>
+  </body>
+</html>

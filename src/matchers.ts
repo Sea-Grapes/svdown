@@ -166,7 +166,7 @@ interface JsBracket {
   localEnd: number
 }
 
-interface SvelteElementData {
+export interface SvelteElement {
   start: number
   end: number
   text: string
@@ -179,7 +179,7 @@ interface SvelteElementData {
 export function parseSvelteElement(
   string: string,
   pos: number,
-): SvelteElementData | null {
+): SvelteElement | null {
   if (string[pos] !== '<') return null
 
   let i = pos + 1

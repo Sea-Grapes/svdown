@@ -18,13 +18,15 @@ try {
 
 let res = await parse(f)
 console.log('preprocess succeeded')
+console.log(res.code)
+console.log()
 
 try {
   svparse(res.code)
   console.log('Svelte render succeeded')
 } catch (e) {
   // console.log(e)
-  console.log(`\nSvelte render error at ${e.position[0]}:`)
+  console.log(`Svelte render error at ${e.position[0]}:`)
   console.log(e.frame)
 }
 

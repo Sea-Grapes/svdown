@@ -5,7 +5,12 @@ import { unified } from 'unified'
 import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import { findBracket, findBracketCore, parseSvelteElement } from './matchers'
+import {
+  findBracket,
+  findBracketCore,
+  parseSvelteElement,
+  SvelteElement,
+} from './matchers'
 import { replaceStrSection } from './util'
 import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
@@ -31,7 +36,7 @@ export class SvmdParser {
   async parse(content: string, filename?: string): Promise<any> {
     const html_regex = /<\/?[\w.:]+/g
 
-    let html = []
+    let html: SvelteElement[] = []
 
     console.log('here')
     for (const match of content.matchAll(html_regex)) {
@@ -58,10 +63,10 @@ export class SvmdParser {
       return (tree: Root) => {
         visit(tree, ['text', 'html'], (node: Node) => {
           if ('value' in node && typeof node.value === 'string') {
-            const match = node.value.match(/<!--svdown-(\d+)-->/)
-            if(match) {
-
-            }
+            node.value = node.value.replace(
+              /<!--svdown-(\d+)-->/g,
+              (_match, id) => html[Number(id)]?.text ?? _match,
+            )
           }
 
           if (
@@ -84,12 +89,12 @@ export class SvmdParser {
     const parse = unified()
       .use(toMdast)
       .use(restoreSvelte)
-      .use(astInspect())
+      // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,
         // allowDangerousCharacters: true,
       })
-      .use(astInspect())
+      // .use(astInspect())
       .use(hastToString, {
         allowDangerousHtml: true,
         // allowDangerousCharacters: true,

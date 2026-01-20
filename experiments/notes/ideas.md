@@ -857,3 +857,9 @@ JS expressions, its probably smarter to placehold (It will just avoid a lot of h
 <div>**test**</div>
 ```
 Here the start tag will be block and the close will be inline. I have no idea how to solve this/how mdx solves it.
+
+
+# Possible final approach?
+
+- handle js expressions first thing w/ placeholders. It's just easier to do first.
+- now handle html; all the js is hidden. Should be easier to do

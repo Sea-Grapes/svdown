@@ -14,6 +14,6 @@
   },
   "include": [
     "src/**/*"
-  ],
+, "experiments/snippets/rewrite.ts"  ],
   "exclude": ["node_modules", "dist"]
 }

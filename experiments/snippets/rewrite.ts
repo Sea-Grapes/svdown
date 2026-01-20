@@ -2,17 +2,17 @@ import hastToString from 'rehype-stringify'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
 import { unified } from 'unified'
-import { PluginConfig } from '.'
+import { PluginConfig } from '../../src'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import { findBracket } from './matchers'
-import { replaceStrSection } from './util'
+import { findBracket } from '../../src/matchers'
+import { replaceStrSection } from '../../src/util'
 import type { Node, Root } from 'mdast'
-import { astInspect } from './dev'
+import { astInspect } from '../../src/dev'
 
 export async function parse(
   content: string,
-  { config, filename }: { config?: PluginConfig; filename?: string } = {}
+  { config, filename }: { config?: PluginConfig; filename?: string } = {},
 ): Promise<string> {
   const parser = new SvmdParser(config)
   let res = await parser.parse(content, filename)
@@ -131,7 +131,7 @@ export class SvmdParser {
 
   private findBracketPairs(
     content: string,
-    textRanges: TextRange[]
+    textRanges: TextRange[],
   ): BracketPair[] {
     const bracketPairs: BracketPair[] = []
 
@@ -183,7 +183,7 @@ export class SvmdParser {
 
   private replaceWithPlaceholders(
     content: string,
-    bracketPairs: BracketPair[]
+    bracketPairs: BracketPair[],
   ): {
     content: string
     replacements: Map<BracketType, BracketPair[]>
@@ -223,7 +223,7 @@ export class SvmdParser {
 
   private async parseMarkdownToHtml(
     content: string,
-    replacements: Map<BracketType, BracketPair[]>
+    replacements: Map<BracketType, BracketPair[]>,
   ): Promise<string> {
     const jsExpressions = replacements.get('js-expression')!
     const htmlBrackets: BracketPair[] = []
@@ -277,7 +277,7 @@ export class SvmdParser {
   private restorePlaceholders(
     content: string,
     replacements: Map<BracketType, BracketPair[]>,
-    prefixes: string[]
+    prefixes: string[],
   ): string {
     // Restore svelte logic blocks
     const svelteLogic = replacements.get('svelte-logic')!

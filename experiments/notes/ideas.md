@@ -850,3 +850,10 @@ onclick={...}
 
 JS expressions, its probably smarter to placehold (It will just avoid a lot of hassle). This covers 3 of the 4 cases:
 - inline js, js inside logic blocks (logic blocks as a whole), js expressions in html
+
+
+* Also some additional testing (test_micromark_4) shows that block->inline doesn't work anyway, like:
+```html
+<div>**test**</div>
+```
+Here the start tag will be block and the close will be inline. I have no idea how to solve this/how mdx solves it.

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+</html>
+
+<script type="module">
+  /**
+   * Micromark extension for parsing HTML tags with Markdown content inside
+   * Approach: Parse tags individually, maintain stack, enter/leave correctly
+   */
+
+  import { codes } from 'https://esm.sh/micromark-util-symbol'
+  import {
+    markdownLineEnding,
+    markdownSpace,
+  } from 'https://esm.sh/micromark-util-character'
+
+  const htmlTagName = /^[a-zA-Z][a-zA-Z0-9-]*/
+  const htmlAttributeName = /^[a-zA-Z:_][a-zA-Z0-9:._-]*/
+  const htmlAttributeValueUnquoted = /^[^\s"'=<>`]+/
+
+  // Void elements that don't have closing tags
+  const voidElements = new Set([
+    'area',
+    'base',
+    'br',
+    'col',
+    'embed',
+    'hr',
+    'img',
+    'input',
+    'link',
+    'meta',
+    'param',
+    'source',
+    'track',
+    'wbr',
+  ])
+
+  /**
+   * Syntax extension for micromark
+   */
+  export function htmlWithMarkdownSyntax() {
+    return {
+      text: {
+        [codes.lessThan]: {
+          name: 'htmlWithMarkdown',
+          tokenize: tokenizeHtmlTag,
+        },
+      },
+      flow: {
+        [codes.lessThan]: {
+          name: 'htmlWithMarkdownBlock',
+          tokenize: tokenizeHtmlTagBlock,
+          concrete: true,
+        },
+      },
+    }
+  }
+
+  function tokenizeHtmlTag(effects, ok, nok) {
+    let tagName = ''
+    let isClosing = false
+    let isSelfClosing = false
+
+    return start
+
+    function start(code) {
+      if (code !== codes.lessThan) return nok(code)
+      effects.enter('htmlTag')
+      effects.enter('htmlTagMarker')
+      effects.consume(code)
+      effects.exit('htmlTagMarker')
+      return afterOpen
+    }
+
+    function afterOpen(code) {
+      if (code === codes.slash) {
+        isClosing = true
+        effects.enter('htmlTagClosingMarker')
+        effects.consume(code)
+        effects.exit('htmlTagClosingMarker')
+        return tagNameStart
+      }
+      return tagNameStart(code)
+    }
+
+    function tagNameStart(code) {
+      if (
+        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
+        (code >= codes.lowercaseA && code <= codes.lowercaseZ)
+      ) {
+        effects.enter('htmlTagName')
+        return tagNameContinue(code)
+      }
+      return nok(code)
+    }
+
+    function tagNameContinue(code) {
+      if (
+        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
+        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
+        (code >= codes.digit0 && code <= codes.digit9) ||
+        code === codes.dash
+      ) {
+        tagName += String.fromCharCode(code)
+        effects.consume(code)
+        return tagNameContinue
+      }
+      effects.exit('htmlTagName')
+      return afterTagName(code)
+    }
+
+    function afterTagName(code) {
+      if (markdownSpace(code)) {
+        effects.enter('whitespace')
+        return whitespace(code)
+      }
+      if (code === codes.slash) {
+        isSelfClosing = true
+        effects.enter('htmlTagSelfClosingMarker')
+        effects.consume(code)
+        effects.exit('htmlTagSelfClosingMarker')
+        return selfClosingEnd
+      }
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+      return nok(code)
+    }
+
+    function whitespace(code) {
+      if (markdownSpace(code)) {
+        effects.consume(code)
+        return whitespace
+      }
+      effects.exit('whitespace')
+
+      if (
+        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
+        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
+        code === codes.colon ||
+        code === codes.underscore
+      ) {
+        return attributeNameStart(code)
+      }
+      if (code === codes.slash) {
+        isSelfClosing = true
+        effects.enter('htmlTagSelfClosingMarker')
+        effects.consume(code)
+        effects.exit('htmlTagSelfClosingMarker')
+        return selfClosingEnd
+      }
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+      return nok(code)
+    }
+
+    function attributeNameStart(code) {
+      effects.enter('htmlTagAttribute')
+      effects.enter('htmlTagAttributeName')
+      return attributeNameContinue(code)
+    }
+
+    function attributeNameContinue(code) {
+      if (
+        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
+        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
+        (code >= codes.digit0 && code <= codes.digit9) ||
+        code === codes.colon ||
+        code === codes.dot ||
+        code === codes.underscore ||
+        code === codes.dash
+      ) {
+        effects.consume(code)
+        return attributeNameContinue
+      }
+      effects.exit('htmlTagAttributeName')
+      return afterAttributeName(code)
+    }
+
+    function afterAttributeName(code) {
+      if (markdownSpace(code)) {
+        effects.enter('whitespace')
+        effects.consume(code)
+        effects.exit('whitespace')
+        return afterAttributeName
+      }
+      if (code === codes.equalsTo) {
+        effects.enter('htmlTagAttributeOperator')
+        effects.consume(code)
+        effects.exit('htmlTagAttributeOperator')
+        return afterAttributeOperator
+      }
+      effects.exit('htmlTagAttribute')
+      return afterTagName(code)
+    }
+
+    function afterAttributeOperator(code) {
+      if (markdownSpace(code)) {
+        effects.enter('whitespace')
+        effects.consume(code)
+        effects.exit('whitespace')
+        return afterAttributeOperator
+      }
+      if (code === codes.quotationMark || code === codes.apostrophe) {
+        return attributeValueQuoted(code)
+      }
+      return attributeValueUnquoted(code)
+    }
+
+    function attributeValueQuoted(code) {
+      const marker = code
+      effects.enter('htmlTagAttributeValue')
+      effects.enter('htmlTagAttributeValueMarker')
+      effects.consume(code)
+      effects.exit('htmlTagAttributeValueMarker')
+      return attributeValueQuotedContinue
+
+      function attributeValueQuotedContinue(code) {
+        if (code === marker) {
+          effects.enter('htmlTagAttributeValueMarker')
+          effects.consume(code)
+          effects.exit('htmlTagAttributeValueMarker')
+          effects.exit('htmlTagAttributeValue')
+          effects.exit('htmlTagAttribute')
+          return afterTagName
+        }
+        if (code === codes.eof || markdownLineEnding(code)) {
+          return nok(code)
+        }
+        effects.consume(code)
+        return attributeValueQuotedContinue
+      }
+    }
+
+    function attributeValueUnquoted(code) {
+      effects.enter('htmlTagAttributeValue')
+      return attributeValueUnquotedContinue(code)
+
+      function attributeValueUnquotedContinue(code) {
+        if (
+          markdownSpace(code) ||
+          code === codes.greaterThan ||
+          code === codes.slash
+        ) {
+          effects.exit('htmlTagAttributeValue')
+          effects.exit('htmlTagAttribute')
+          return afterTagName(code)
+        }
+        if (
+          code === codes.eof ||
+          markdownLineEnding(code) ||
+          code === codes.quotationMark ||
+          code === codes.apostrophe ||
+          code === codes.equalsTo ||
+          code === codes.lessThan ||
+          code === codes.graveAccent
+        ) {
+          return nok(code)
+        }
+        effects.consume(code)
+        return attributeValueUnquotedContinue
+      }
+    }
+
+    function selfClosingEnd(code) {
+      if (markdownSpace(code)) {
+        effects.enter('whitespace')
+        effects.consume(code)
+        effects.exit('whitespace')
+        return selfClosingEnd
+      }
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+      return nok(code)
+    }
+
+    function tagEnd(code) {
+      effects.enter('htmlTagMarker')
+      effects.consume(code)
+      effects.exit('htmlTagMarker')
+      effects.exit('htmlTag')
+      return ok
+    }
+  }
+
+  /**
+   * HTML extension for micromark - converts tokens to mdast nodes
+   */
+  export function htmlWithMarkdownHtml() {
+    return {
+      enter: {
+        htmlTag: enterHtmlTag,
+        htmlTagName: enterHtmlTagName,
+        htmlTagAttribute: enterHtmlTagAttribute,
+        htmlTagAttributeName: enterHtmlTagAttributeName,
+        htmlTagAttributeValue: enterHtmlTagAttributeValue,
+      },
+      exit: {
+        htmlTag: exitHtmlTag,
+        htmlTagName: exitHtmlTagName,
+        htmlTagAttribute: exitHtmlTagAttribute,
+        htmlTagAttributeName: exitHtmlTagAttributeName,
+        htmlTagAttributeValue: exitHtmlTagAttributeValue,
+      },
+    }
+  }
+
+  function enterHtmlTag(token) {
+    this.enter(
+      {
+        type: 'htmlTag',
+        tagName: '',
+        attributes: {},
+        selfClosing: false,
+        closing: false,
+        children: [],
+      },
+      token,
+    )
+  }
+
+  function enterHtmlTagName(token) {
+    this.buffer()
+  }
+
+  function exitHtmlTagName(token) {
+    const data = this.resume()
+    const current = this.stack[this.stack.length - 1]
+    current.tagName = data.toLowerCase()
+  }
+
+  function enterHtmlTagAttribute(token) {
+    const current = this.stack[this.stack.length - 1]
+    current._currentAttribute = { name: '', value: '' }
+  }
+
+  function enterHtmlTagAttributeName(token) {
+    this.buffer()
+  }
+
+  function exitHtmlTagAttributeName(token) {
+    const data = this.resume()
+    const current = this.stack[this.stack.length - 1]
+    current._currentAttribute.name = data
+  }
+
+  function enterHtmlTagAttributeValue(token) {
+    this.buffer()
+  }
+
+  function exitHtmlTagAttributeValue(token) {
+    const data = this.resume()
+    const current = this.stack[this.stack.length - 1]
+    current._currentAttribute.value = data.replace(/^["']|["']$/g, '')
+  }
+
+  function exitHtmlTagAttribute(token) {
+    const current = this.stack[this.stack.length - 1]
+    const attr = current._currentAttribute
+    current.attributes[attr.name] = attr.value
+    delete current._currentAttribute
+  }
+
+  function exitHtmlTag(token) {
+    const node = this.exit(token)
+
+    // Check for self-closing or void elements
+    node.selfClosing = token.selfClosing || voidElements.has(node.tagName)
+
+    // Check for closing tag
+    const tokenText = this.sliceSerialize(token)
+    node.closing = tokenText.startsWith('</')
+
+    // Convert to hast-compatible structure
+    if (!node.closing) {
+      this.data.htmlStack = this.data.htmlStack || []
+      this.data.htmlStack.push(node)
+    } else {
+      // Handle closing tag - pop from stack and attach children
+      this.data.htmlStack = this.data.htmlStack || []
+      const openNode = this.data.htmlStack.pop()
+      if (openNode && openNode.tagName === node.tagName) {
+        // This would be where we collect children between open and close tags
+        // For now, mark it as complete
+        openNode.complete = true
+      }
+    }
+  }
+
+  /**
+   * Remark plugin that uses the micromark extension
+   */
+  export default function remarkHtmlWithMarkdown() {
+    const data = this.data()
+
+    add('micromarkExtensions', htmlWithMarkdownSyntax())
+    add('fromMarkdownExtensions', htmlWithMarkdownHtml())
+
+    function add(field, value) {
+      const list = data[field] ? data[field] : (data[field] = [])
+      list.push(value)
+    }
+  }
+
+  import { unified } from 'https://esm.sh/unified@11?bundle'
+  import stringToMdast from 'https://esm.sh/remark-parse@11?bundle'
+  import mdastToHast from 'https://esm.sh/remark-rehype@11?bundle'
+  import hastToString from 'https://esm.sh/rehype-stringify@10?bundle'
+
+  async function process(test) {
+    const pipe = unified()
+      .use(stringToMdast)
+      .use(remarkHtmlWithMarkdown)
+      .use(mdastToHast, { allowDangerousHtml: true })
+      .use(hastToString, { allowDangerousHtml: true })
+
+    const html = (await pipe.process(test)).toString()
+    const mdast = pipe.parse(test)
+
+    console.log('HTML output:', html)
+    // console.log(mdast)
+    console.log('Tree:', JSON.stringify(mdast, null, 2))
+    console.log('---\n')
+  }
+
+  const catch_errors = false
+
+  const tests = [`<div>**Test**</div>`]
+
+  for await (const test of tests) {
+    console.count('Test')
+    console.log('Input:', test)
+
+    if (catch_errors) {
+      try {
+        await process(test)
+      } catch (err) {
+        console.error('Error:', err.message)
+      }
+    } else {
+      await process(test)
+    }
+  }
+</script>

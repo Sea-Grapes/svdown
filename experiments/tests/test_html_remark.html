@@ -19,10 +19,6 @@
     markdownSpace,
   } from 'https://esm.sh/micromark-util-character'
 
-  const htmlTagName = /^[a-zA-Z][a-zA-Z0-9-]*/
-  const htmlAttributeName = /^[a-zA-Z:_][a-zA-Z0-9:._-]*/
-  const htmlAttributeValueUnquoted = /^[^\s"'=<>`]+/
-
   // Void elements that don't have closing tags
   const voidElements = new Set([
     'area',
@@ -45,19 +41,17 @@
    * Syntax extension for micromark
    */
   export function htmlWithMarkdownSyntax() {
+    const tagTokenizer = {
+      name: 'htmlWithMarkdown',
+      tokenize: tokenizeHtmlTag,
+    }
+
     return {
       text: {
-        [codes.lessThan]: {
-          name: 'htmlWithMarkdown',
-          tokenize: tokenizeHtmlTag,
-        },
+        [codes.lessThan]: tagTokenizer,
       },
       flow: {
-        [codes.lessThan]: {
-          name: 'htmlWithMarkdownBlock',
-          tokenize: tokenizeHtmlTagBlock,
-          concrete: true,
-        },
+        [codes.lessThan]: tagTokenizer,
       },
     }
   }
@@ -321,7 +315,10 @@
         attributes: {},
         selfClosing: false,
         closing: false,
-        children: [],
+        position: {
+          start: token.start,
+          end: token.end,
+        },
       },
       token,
     )
@@ -365,32 +362,63 @@
   function exitHtmlTagAttribute(token) {
     const current = this.stack[this.stack.length - 1]
     const attr = current._currentAttribute
-    current.attributes[attr.name] = attr.value
+    current.attributes[attr.name] = attr.value || true
     delete current._currentAttribute
   }
 
   function exitHtmlTag(token) {
     const node = this.exit(token)
+    if (!node) return
+    if (node.position) {
+      node.position = { start: token.start, end: token.end }
+    } else {
+      node.position.end = token.end
+    }
 
     // Check for self-closing or void elements
-    node.selfClosing = token.selfClosing || voidElements.has(node.tagName)
+    node.selfClosing = voidElements.has(node.tagName)
 
-    // Check for closing tag
+    // Check for closing tag by looking at the token
     const tokenText = this.sliceSerialize(token)
     node.closing = tokenText.startsWith('</')
 
-    // Convert to hast-compatible structure
-    if (!node.closing) {
-      this.data.htmlStack = this.data.htmlStack || []
+    // Initialize the HTML stack if needed
+    this.data.htmlStack = this.data.htmlStack || []
+
+    if (!node.closing && !node.selfClosing) {
+      // Opening tag - push to stack
+      node.children = []
       this.data.htmlStack.push(node)
-    } else {
-      // Handle closing tag - pop from stack and attach children
-      this.data.htmlStack = this.data.htmlStack || []
-      const openNode = this.data.htmlStack.pop()
-      if (openNode && openNode.tagName === node.tagName) {
-        // This would be where we collect children between open and close tags
-        // For now, mark it as complete
-        openNode.complete = true
+    } else if (node.closing) {
+      // Closing tag - pop from stack and build the element
+      let openNode = null
+
+      // Find matching opening tag
+      for (let i = this.data.htmlStack.length - 1; i >= 0; i--) {
+        if (this.data.htmlStack[i].tagName === node.tagName) {
+          openNode = this.data.htmlStack.splice(i, 1)[0]
+          break
+        }
+      }
+
+      if (openNode) {
+        // Create proper hast node structure
+        const hastNode = {
+          type: 'element',
+          tagName: openNode.tagName,
+          properties: openNode.attributes,
+          children: openNode.children,
+          position: {
+            start: openNode.position.start,
+            end: node.position.end,
+          },
+        }
+
+        // Add to parent or root
+        if (this.data.htmlStack.length > 0) {
+          const parent = this.data.htmlStack[this.data.htmlStack.length - 1]
+          parent.children.push(hastNode)
+        }
       }
     }
   }

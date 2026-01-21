@@ -18,6 +18,10 @@
     markdownLineEnding,
     markdownSpace,
   } from 'https://esm.sh/micromark-util-character'
+  /**
+   * Micromark extension for parsing HTML tags with Markdown content inside
+   * Simplified: Store raw HTML for tags, allow children between open/close
+   */
 
   // Void elements that don't have closing tags
   const voidElements = new Set([
@@ -62,16 +66,14 @@
     function start(code) {
       if (code !== codes.lessThan) return nok(code)
       effects.enter('htmlTag')
-      effects.enter('htmlTagRaw')
-      effects.consume(code)
+      effects.consume(code) // consume <
       return inside
     }
 
     function inside(code) {
       // Consume until we hit >
       if (code === codes.greaterThan) {
-        effects.consume(code)
-        effects.exit('htmlTagRaw')
+        effects.consume(code) // consume >
         effects.exit('htmlTag')
         return ok
       }
@@ -92,42 +94,16 @@
     return {
       enter: {
         htmlTag: enterHtmlTag,
-        htmlTagRaw: enterHtmlTagRaw,
       },
       exit: {
-        htmlTagRaw: exitHtmlTagRaw,
         htmlTag: exitHtmlTag,
       },
     }
   }
 
   function enterHtmlTag(token) {
-    this.enter(
-      {
-        type: 'htmlTag',
-        value: '',
-        children: [],
-      },
-      token,
-    )
-  }
-
-  function enterHtmlTagRaw(token) {
-    this.buffer()
-  }
-
-  function exitHtmlTagRaw(token) {
-    const data = this.resume()
-    const current = this.stack[this.stack.length - 1]
-    current.value = data
-  }
-
-  function exitHtmlTag(token) {
-    const node = this.exit(token)
-    if (!node) return
-    const rawTag = node.value
-
-    // Parse basic tag info
+    // Parse the tag immediately to determine if it's opening or closing
+    const rawTag = this.sliceSerialize(token)
     const isClosing = rawTag.startsWith('</')
     const isSelfClosing = rawTag.endsWith('/>') || rawTag.includes(' /')
 
@@ -142,44 +118,86 @@
 
     const isVoid = voidElements.has(tagName)
 
-    // Initialize the HTML stack if needed
-    this.data.htmlStack = this.data.htmlStack || []
+    // Initialize stack
+    if (!this.data.htmlTagStack) this.data.htmlTagStack = []
 
     if (!isClosing && !isSelfClosing && !isVoid) {
-      // Opening tag - push to stack for later
-      node.tagName = tagName
-      node.opening = true
-      this.data.htmlStack.push(node)
-    } else if (isClosing) {
-      // Closing tag - find matching opening tag
-      let openNode = null
-
-      for (let i = this.data.htmlStack.length - 1; i >= 0; i--) {
-        if (this.data.htmlStack[i].tagName === tagName) {
-          openNode = this.data.htmlStack.splice(i, 1)[0]
-          break
-        }
-      }
-
-      if (openNode) {
-        // Create element with opening tag, children, and closing tag
-        const element = {
+      // Opening tag - create element and push to mdast stack
+      this.enter(
+        {
           type: 'htmlElement',
-          openingTag: openNode.value,
-          closingTag: rawTag,
           tagName: tagName,
-          children: openNode.children || [],
+          openingTag: rawTag,
+          closingTag: '',
+          children: [],
+        },
+        token,
+      )
+
+      // Also track on our custom stack
+      this.data.htmlTagStack.push({ tagName, token })
+    } else if (isClosing) {
+      // Closing tag - just store info, we'll handle in exit
+      this.data.pendingClose = { tagName, rawTag, token }
+    } else {
+      // Self-closing or void - create simple html node
+      this.enter(
+        {
+          type: 'html',
+          value: rawTag,
+        },
+        token,
+      )
+    }
+  }
+
+  function exitHtmlTag(token) {
+    const rawTag = this.sliceSerialize(token)
+    const isClosing = rawTag.startsWith('</')
+    const isSelfClosing = rawTag.endsWith('/>') || rawTag.includes(' /')
+
+    // Extract tag name
+    let tagName = ''
+    const match = rawTag.match(
+      isClosing ? /<\/([a-zA-Z][a-zA-Z0-9-]*)/ : /<([a-zA-Z][a-zA-Z0-9-]*)/,
+    )
+    if (match) {
+      tagName = match[1].toLowerCase()
+    }
+
+    const isVoid = voidElements.has(tagName)
+
+    if (!isClosing && !isSelfClosing && !isVoid) {
+      // Opening tag - already entered, nothing more to do
+      // The element stays on the stack until closed
+    } else if (isClosing) {
+      // Closing tag - find matching opening tag and exit it
+      const stack = this.data.htmlTagStack
+
+      if (stack && stack.length > 0) {
+        // Find matching opening tag
+        let foundIndex = -1
+        for (let i = stack.length - 1; i >= 0; i--) {
+          if (stack[i].tagName === tagName) {
+            foundIndex = i
+            break
+          }
         }
 
-        // Add to parent or leave in tree
-        if (this.data.htmlStack.length > 0) {
-          const parent = this.data.htmlStack[this.data.htmlStack.length - 1]
-          parent.children.push(element)
+        if (foundIndex >= 0) {
+          // Remove from our tracking stack
+          stack.splice(foundIndex, 1)
+
+          // Exit the element from mdast stack
+          const element = this.exit(token)
+          if (element) {
+            element.closingTag = rawTag
+          }
         }
       }
     } else {
-      // Self-closing or void element
-      node.type = 'html'
+      // Self-closing or void - exit immediately
+      this.exit(token)
     }
   }
 

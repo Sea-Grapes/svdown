@@ -863,3 +863,7 @@ Here the start tag will be block and the close will be inline. I have no idea ho
 
 - handle js expressions first thing w/ placeholders. It's just easier to do first.
 - now handle html; all the js is hidden. Should be easier to do
+
+Notes:
+- placeholding *all* html doesn't work because it breaks autolinks like <https://test.com> and stuff, since those won't be parsed as link. You could use a custom micromark html parser that allows `svelte:` and periods specifically. 
+  - placeholding certain html might work, might not.

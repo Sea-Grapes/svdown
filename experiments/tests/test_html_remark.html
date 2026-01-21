@@ -57,231 +57,31 @@
   }
 
   function tokenizeHtmlTag(effects, ok, nok) {
-    let tagName = ''
-    let isClosing = false
-    let isSelfClosing = false
-
     return start
 
     function start(code) {
       if (code !== codes.lessThan) return nok(code)
       effects.enter('htmlTag')
-      effects.enter('htmlTagMarker')
+      effects.enter('htmlTagRaw')
       effects.consume(code)
-      effects.exit('htmlTagMarker')
-      return afterOpen
+      return inside
     }
 
-    function afterOpen(code) {
-      if (code === codes.slash) {
-        isClosing = true
-        effects.enter('htmlTagClosingMarker')
-        effects.consume(code)
-        effects.exit('htmlTagClosingMarker')
-        return tagNameStart
-      }
-      return tagNameStart(code)
-    }
-
-    function tagNameStart(code) {
-      if (
-        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
-        (code >= codes.lowercaseA && code <= codes.lowercaseZ)
-      ) {
-        effects.enter('htmlTagName')
-        return tagNameContinue(code)
-      }
-      return nok(code)
-    }
-
-    function tagNameContinue(code) {
-      if (
-        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
-        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
-        (code >= codes.digit0 && code <= codes.digit9) ||
-        code === codes.dash
-      ) {
-        tagName += String.fromCharCode(code)
-        effects.consume(code)
-        return tagNameContinue
-      }
-      effects.exit('htmlTagName')
-      return afterTagName(code)
-    }
-
-    function afterTagName(code) {
-      if (markdownSpace(code)) {
-        effects.enter('whitespace')
-        return whitespace(code)
-      }
-      if (code === codes.slash) {
-        isSelfClosing = true
-        effects.enter('htmlTagSelfClosingMarker')
-        effects.consume(code)
-        effects.exit('htmlTagSelfClosingMarker')
-        return selfClosingEnd
-      }
+    function inside(code) {
+      // Consume until we hit >
       if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-      return nok(code)
-    }
-
-    function whitespace(code) {
-      if (markdownSpace(code)) {
         effects.consume(code)
-        return whitespace
+        effects.exit('htmlTagRaw')
+        effects.exit('htmlTag')
+        return ok
       }
-      effects.exit('whitespace')
 
-      if (
-        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
-        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
-        code === codes.colon ||
-        code === codes.underscore
-      ) {
-        return attributeNameStart(code)
+      if (code === codes.eof || markdownLineEnding(code)) {
+        return nok(code)
       }
-      if (code === codes.slash) {
-        isSelfClosing = true
-        effects.enter('htmlTagSelfClosingMarker')
-        effects.consume(code)
-        effects.exit('htmlTagSelfClosingMarker')
-        return selfClosingEnd
-      }
-      if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-      return nok(code)
-    }
 
-    function attributeNameStart(code) {
-      effects.enter('htmlTagAttribute')
-      effects.enter('htmlTagAttributeName')
-      return attributeNameContinue(code)
-    }
-
-    function attributeNameContinue(code) {
-      if (
-        (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
-        (code >= codes.lowercaseA && code <= codes.lowercaseZ) ||
-        (code >= codes.digit0 && code <= codes.digit9) ||
-        code === codes.colon ||
-        code === codes.dot ||
-        code === codes.underscore ||
-        code === codes.dash
-      ) {
-        effects.consume(code)
-        return attributeNameContinue
-      }
-      effects.exit('htmlTagAttributeName')
-      return afterAttributeName(code)
-    }
-
-    function afterAttributeName(code) {
-      if (markdownSpace(code)) {
-        effects.enter('whitespace')
-        effects.consume(code)
-        effects.exit('whitespace')
-        return afterAttributeName
-      }
-      if (code === codes.equalsTo) {
-        effects.enter('htmlTagAttributeOperator')
-        effects.consume(code)
-        effects.exit('htmlTagAttributeOperator')
-        return afterAttributeOperator
-      }
-      effects.exit('htmlTagAttribute')
-      return afterTagName(code)
-    }
-
-    function afterAttributeOperator(code) {
-      if (markdownSpace(code)) {
-        effects.enter('whitespace')
-        effects.consume(code)
-        effects.exit('whitespace')
-        return afterAttributeOperator
-      }
-      if (code === codes.quotationMark || code === codes.apostrophe) {
-        return attributeValueQuoted(code)
-      }
-      return attributeValueUnquoted(code)
-    }
-
-    function attributeValueQuoted(code) {
-      const marker = code
-      effects.enter('htmlTagAttributeValue')
-      effects.enter('htmlTagAttributeValueMarker')
       effects.consume(code)
-      effects.exit('htmlTagAttributeValueMarker')
-      return attributeValueQuotedContinue
-
-      function attributeValueQuotedContinue(code) {
-        if (code === marker) {
-          effects.enter('htmlTagAttributeValueMarker')
-          effects.consume(code)
-          effects.exit('htmlTagAttributeValueMarker')
-          effects.exit('htmlTagAttributeValue')
-          effects.exit('htmlTagAttribute')
-          return afterTagName
-        }
-        if (code === codes.eof || markdownLineEnding(code)) {
-          return nok(code)
-        }
-        effects.consume(code)
-        return attributeValueQuotedContinue
-      }
-    }
-
-    function attributeValueUnquoted(code) {
-      effects.enter('htmlTagAttributeValue')
-      return attributeValueUnquotedContinue(code)
-
-      function attributeValueUnquotedContinue(code) {
-        if (
-          markdownSpace(code) ||
-          code === codes.greaterThan ||
-          code === codes.slash
-        ) {
-          effects.exit('htmlTagAttributeValue')
-          effects.exit('htmlTagAttribute')
-          return afterTagName(code)
-        }
-        if (
-          code === codes.eof ||
-          markdownLineEnding(code) ||
-          code === codes.quotationMark ||
-          code === codes.apostrophe ||
-          code === codes.equalsTo ||
-          code === codes.lessThan ||
-          code === codes.graveAccent
-        ) {
-          return nok(code)
-        }
-        effects.consume(code)
-        return attributeValueUnquotedContinue
-      }
-    }
-
-    function selfClosingEnd(code) {
-      if (markdownSpace(code)) {
-        effects.enter('whitespace')
-        effects.consume(code)
-        effects.exit('whitespace')
-        return selfClosingEnd
-      }
-      if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-      return nok(code)
-    }
-
-    function tagEnd(code) {
-      effects.enter('htmlTagMarker')
-      effects.consume(code)
-      effects.exit('htmlTagMarker')
-      effects.exit('htmlTag')
-      return ok
+      return inside
     }
   }
 
@@ -292,17 +92,11 @@
     return {
       enter: {
         htmlTag: enterHtmlTag,
-        htmlTagName: enterHtmlTagName,
-        htmlTagAttribute: enterHtmlTagAttribute,
-        htmlTagAttributeName: enterHtmlTagAttributeName,
-        htmlTagAttributeValue: enterHtmlTagAttributeValue,
+        htmlTagRaw: enterHtmlTagRaw,
       },
       exit: {
+        htmlTagRaw: exitHtmlTagRaw,
         htmlTag: exitHtmlTag,
-        htmlTagName: exitHtmlTagName,
-        htmlTagAttribute: exitHtmlTagAttribute,
-        htmlTagAttributeName: exitHtmlTagAttributeName,
-        htmlTagAttributeValue: exitHtmlTagAttributeValue,
       },
     }
   }
@@ -311,115 +105,81 @@
     this.enter(
       {
         type: 'htmlTag',
-        tagName: '',
-        attributes: {},
-        selfClosing: false,
-        closing: false,
-        position: {
-          start: token.start,
-          end: token.end,
-        },
+        value: '',
+        children: [],
       },
       token,
     )
   }
 
-  function enterHtmlTagName(token) {
+  function enterHtmlTagRaw(token) {
     this.buffer()
   }
 
-  function exitHtmlTagName(token) {
+  function exitHtmlTagRaw(token) {
     const data = this.resume()
     const current = this.stack[this.stack.length - 1]
-    current.tagName = data.toLowerCase()
-  }
-
-  function enterHtmlTagAttribute(token) {
-    const current = this.stack[this.stack.length - 1]
-    current._currentAttribute = { name: '', value: '' }
-  }
-
-  function enterHtmlTagAttributeName(token) {
-    this.buffer()
-  }
-
-  function exitHtmlTagAttributeName(token) {
-    const data = this.resume()
-    const current = this.stack[this.stack.length - 1]
-    current._currentAttribute.name = data
-  }
-
-  function enterHtmlTagAttributeValue(token) {
-    this.buffer()
-  }
-
-  function exitHtmlTagAttributeValue(token) {
-    const data = this.resume()
-    const current = this.stack[this.stack.length - 1]
-    current._currentAttribute.value = data.replace(/^["']|["']$/g, '')
-  }
-
-  function exitHtmlTagAttribute(token) {
-    const current = this.stack[this.stack.length - 1]
-    const attr = current._currentAttribute
-    current.attributes[attr.name] = attr.value || true
-    delete current._currentAttribute
+    current.value = data
   }
 
   function exitHtmlTag(token) {
     const node = this.exit(token)
     if (!node) return
-    if (node.position) {
-      node.position = { start: token.start, end: token.end }
-    } else {
-      node.position.end = token.end
+    const rawTag = node.value
+
+    // Parse basic tag info
+    const isClosing = rawTag.startsWith('</')
+    const isSelfClosing = rawTag.endsWith('/>') || rawTag.includes(' /')
+
+    // Extract tag name
+    let tagName = ''
+    const match = rawTag.match(
+      isClosing ? /<\/([a-zA-Z][a-zA-Z0-9-]*)/ : /<([a-zA-Z][a-zA-Z0-9-]*)/,
+    )
+    if (match) {
+      tagName = match[1].toLowerCase()
     }
 
-    // Check for self-closing or void elements
-    node.selfClosing = voidElements.has(node.tagName)
-
-    // Check for closing tag by looking at the token
-    const tokenText = this.sliceSerialize(token)
-    node.closing = tokenText.startsWith('</')
+    const isVoid = voidElements.has(tagName)
 
     // Initialize the HTML stack if needed
     this.data.htmlStack = this.data.htmlStack || []
 
-    if (!node.closing && !node.selfClosing) {
-      // Opening tag - push to stack
-      node.children = []
+    if (!isClosing && !isSelfClosing && !isVoid) {
+      // Opening tag - push to stack for later
+      node.tagName = tagName
+      node.opening = true
       this.data.htmlStack.push(node)
-    } else if (node.closing) {
-      // Closing tag - pop from stack and build the element
+    } else if (isClosing) {
+      // Closing tag - find matching opening tag
       let openNode = null
 
-      // Find matching opening tag
       for (let i = this.data.htmlStack.length - 1; i >= 0; i--) {
-        if (this.data.htmlStack[i].tagName === node.tagName) {
+        if (this.data.htmlStack[i].tagName === tagName) {
           openNode = this.data.htmlStack.splice(i, 1)[0]
           break
         }
       }
 
       if (openNode) {
-        // Create proper hast node structure
-        const hastNode = {
-          type: 'element',
-          tagName: openNode.tagName,
-          properties: openNode.attributes,
-          children: openNode.children,
-          position: {
-            start: openNode.position.start,
-            end: node.position.end,
-          },
+        // Create element with opening tag, children, and closing tag
+        const element = {
+          type: 'htmlElement',
+          openingTag: openNode.value,
+          closingTag: rawTag,
+          tagName: tagName,
+          children: openNode.children || [],
         }
 
-        // Add to parent or root
+        // Add to parent or leave in tree
         if (this.data.htmlStack.length > 0) {
           const parent = this.data.htmlStack[this.data.htmlStack.length - 1]
-          parent.children.push(hastNode)
+          parent.children.push(element)
         }
       }
+    } else {
+      // Self-closing or void element
+      node.type = 'html'
     }
   }
 

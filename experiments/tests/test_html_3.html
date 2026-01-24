@@ -36,6 +36,7 @@
   }
 
   function tokenizeHtmlText(effects, ok, nok) {
+    const self = this
     let tagName = ''
 
     return start
@@ -51,7 +52,7 @@
 
     function tagOpen(code) {
       if (code === codes.slash) {
-        return nok(code) // Closing tag handled separately
+        return nok(code)
       }
 
       if (isNameStart(code)) {
@@ -113,36 +114,86 @@
     function tagEnd(code) {
       effects.consume(code) // >
       effects.exit('htmlTextTag')
-      return contentText
+
+      // KEY: Don't exit htmlTextElement yet!
+      // Instead, look ahead for the closing tag
+      return effects.attempt(
+        { tokenize: tokenizeUntilClosing, partial: true },
+        afterContent,
+        nok,
+      )(code)
     }
 
-    function contentText(code) {
-      // Look for closing tag
-      if (code === codes.lessThan) {
-        return effects.check(
-          closingTag(tagName),
-          afterClosingTag,
-          continueContent,
-        )(code)
+    function tokenizeUntilClosing(effects, ok, nok) {
+      return contentStart
+
+      function contentStart(code) {
+        // Look for closing tag
+        if (code === codes.lessThan) {
+          return effects.check(
+            closingTag(tagName),
+            ok, // Found closing tag!
+            consumeContent,
+          )(code)
+        }
+
+        if (markdownLineEnding(code) || code === codes.eof) {
+          return nok(code)
+        }
+
+        return consumeContent(code)
       }
 
-      // Text elements can't span lines
-      if (markdownLineEnding(code) || code === codes.eof) {
-        return nok(code)
+      function consumeContent(code) {
+        if (code === codes.lessThan) {
+          return contentStart(code)
+        }
+
+        if (markdownLineEnding(code) || code === codes.eof) {
+          return nok(code)
+        }
+
+        // Consume as data
+        effects.consume(code)
+        return contentStart
+      }
+    }
+
+    function afterContent(code) {
+      // Now consume the closing tag
+      return closingTagConsume(code)
+    }
+
+    function closingTagConsume(code) {
+      effects.enter('htmlClosingTag')
+      effects.consume(code) // <
+      return closingSlash
+    }
+
+    function closingSlash(code) {
+      effects.consume(code) // /
+      return closingName
+    }
+
+    function closingName(code) {
+      if (isNameChar(code)) {
+        effects.consume(code)
+        return closingName
       }
 
-      // Let micromark parse INLINE markdown here
-      return ok(code)
-    }
+      if (markdownSpace(code)) {
+        effects.consume(code)
+        return closingName
+      }
 
-    function continueContent(code) {
-      // Not a closing tag, keep going
-      return ok(code)
-    }
+      if (code === codes.greaterThan) {
+        effects.consume(code)
+        effects.exit('htmlClosingTag')
+        effects.exit('htmlTextElement')
+        return ok
+      }
 
-    function afterClosingTag(code) {
-      effects.exit('htmlTextElement')
-      return ok(code)
+      return nok(code)
     }
   }
 
@@ -159,8 +210,6 @@
 
       function start(code) {
         if (code !== codes.lessThan) return nok(code)
-
-        effects.enter('htmlClosingTag')
         effects.consume(code)
         return slash
       }
@@ -185,7 +234,6 @@
           return nameChar
         }
 
-        // Check if name matches
         if (actualName !== expectedName) {
           return nok(code)
         }
@@ -197,7 +245,6 @@
 
         if (code === codes.greaterThan) {
           effects.consume(code)
-          effects.exit('htmlClosingTag')
           return ok
         }
 
@@ -212,7 +259,6 @@
 
         if (code === codes.greaterThan) {
           effects.consume(code)
-          effects.exit('htmlClosingTag')
           return ok
         }
 
@@ -239,9 +285,11 @@
 
   function remarkHtmlMarkdown() {
     const data = this.data()
+
     add('micromarkExtensions', {
       disable: { null: ['htmlText', 'htmlFlow'] },
     })
+
     add('micromarkExtensions', htmlWithMarkdown())
     add('fromMarkdownExtensions', fromMarkdown())
 
@@ -295,9 +343,15 @@
     })
     .use(rehypeStringify)
 
-  const input = `<div>**test**</div>`
-  console.log('mdast', processor.parse(input))
-  const result = await processor.process(input)
-  console.log('Result:', String(result))
-  document.getElementById('output').innerHTML = String(result)
+  try {
+    const result = await processor.process('<div>**test**</div>')
+    console.log('Result:', String(result))
+    document.getElementById('output').innerHTML = `
+      <pre>Result: ${String(result)}</pre>
+    `
+  } catch (e) {
+    console.error(e)
+    document.getElementById('output').innerHTML =
+      `<pre>Error: ${e.message}\n\n${e.stack}</pre>`
+  }
 </script>

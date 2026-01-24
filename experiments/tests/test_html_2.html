@@ -16,7 +16,7 @@
   import remarkRehype from 'https://esm.sh/remark-rehype'
   import rehypeStringify from 'https://esm.sh/rehype-stringify'
 
-  import { codes } from 'https://esm.sh/micromark-util-symbol'
+  import { codes, constants } from 'https://esm.sh/micromark-util-symbol'
   import {
     markdownLineEnding,
     markdownSpace,
@@ -25,7 +25,8 @@
   function htmlWithMarkdown() {
     return {
       text: {
-        [codes.lessThan]: htmlTextConstruct,
+        // Add as array with your construct first (higher priority)
+        [codes.lessThan]: [htmlTextConstruct],
       },
     }
   }
@@ -33,6 +34,17 @@
   const htmlTextConstruct = {
     name: 'htmlTextElement',
     tokenize: tokenizeHtmlText,
+    // Add resolveAll to intercept HTML tokens
+    resolveAll: createResolver(),
+  }
+
+  function createResolver() {
+    return function resolveAll(events, context) {
+      // Remove any built-in HTML events
+      return events.filter((event) => {
+        return event[1].type !== 'htmlText'
+      })
+    }
   }
 
   function tokenizeHtmlText(effects, ok, nok) {
@@ -51,7 +63,7 @@
 
     function tagOpen(code) {
       if (code === codes.slash) {
-        return nok(code) // Closing tag handled separately
+        return nok(code)
       }
 
       if (isNameStart(code)) {
@@ -117,7 +129,6 @@
     }
 
     function contentText(code) {
-      // Look for closing tag
       if (code === codes.lessThan) {
         return effects.check(
           closingTag(tagName),
@@ -126,17 +137,14 @@
         )(code)
       }
 
-      // Text elements can't span lines
       if (markdownLineEnding(code) || code === codes.eof) {
         return nok(code)
       }
 
-      // Let micromark parse INLINE markdown here
       return ok(code)
     }
 
     function continueContent(code) {
-      // Not a closing tag, keep going
       return ok(code)
     }
 
@@ -185,7 +193,6 @@
           return nameChar
         }
 
-        // Check if name matches
         if (actualName !== expectedName) {
           return nok(code)
         }
@@ -239,9 +246,12 @@
 
   function remarkHtmlMarkdown() {
     const data = this.data()
+
+    // CRITICAL: Disable built-in HTML
     add('micromarkExtensions', {
       disable: { null: ['htmlText', 'htmlFlow'] },
     })
+
     add('micromarkExtensions', htmlWithMarkdown())
     add('fromMarkdownExtensions', fromMarkdown())
 
@@ -295,9 +305,15 @@
     })
     .use(rehypeStringify)
 
-  const input = `<div>**test**</div>`
-  console.log('mdast', processor.parse(input))
-  const result = await processor.process(input)
-  console.log('Result:', String(result))
-  document.getElementById('output').innerHTML = String(result)
+  try {
+    const result = await processor.process('<div>**test**</div>')
+    console.log('Result:', String(result))
+    document.getElementById('output').innerHTML = `
+      <pre>Result: ${String(result)}</pre>
+    `
+  } catch (e) {
+    console.error(e)
+    document.getElementById('output').innerHTML =
+      `<pre>Error: ${e.message}</pre>`
+  }
 </script>

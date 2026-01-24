@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+</html>
+
+<script type="module">
+  /**
+   * Micromark extension for HTML tags that can contain markdown
+   * Similar to MDX but for regular HTML
+   */
+
+  import { unified } from 'https://esm.sh/unified'
+  import remarkParse from 'https://esm.sh/remark-parse'
+  import remarkRehype from 'https://esm.sh/remark-rehype'
+  import rehypeStringify from 'https://esm.sh/rehype-stringify'
+
+  import { codes } from 'https://esm.sh/micromark-util-symbol'
+  import {
+    markdownLineEnding,
+    markdownSpace,
+  } from 'https://esm.sh/micromark-util-character'
+
+  export function htmlWithMarkdown() {
+    return {
+      // Flow-level HTML (block)
+      flow: {
+        [codes.lessThan]: htmlFlowConstruct,
+      },
+      // Text-level HTML (inline)
+      text: {
+        [codes.lessThan]: htmlTextConstruct,
+      },
+    }
+  }
+
+  // ============================================
+  // FLOW (BLOCK-LEVEL) HTML
+  // ============================================
+
+  const htmlFlowConstruct = {
+    name: 'htmlFlowElement',
+    tokenize: tokenizeHtmlFlow,
+    concrete: true,
+  }
+
+  function tokenizeHtmlFlow(effects, ok, nok) {
+    let tagName = ''
+
+    return start
+
+    function start(code) {
+      if (code !== codes.lessThan) return nok(code)
+
+      effects.enter('htmlFlowElement')
+      effects.enter('htmlFlowTag')
+      effects.consume(code) // <
+      return tagOpen
+    }
+
+    function tagOpen(code) {
+      // Check for closing tag
+      if (code === codes.slash) {
+        // This is a closing tag - handle separately
+        return nok(code)
+      }
+
+      // Start of tag name
+      if (isNameStart(code)) {
+        effects.enter('htmlFlowTagName')
+        return tagNameChar(code)
+      }
+
+      return nok(code)
+    }
+
+    function tagNameChar(code) {
+      if (isNameChar(code)) {
+        tagName += String.fromCharCode(code)
+        effects.consume(code)
+        return tagNameChar
+      }
+
+      effects.exit('htmlFlowTagName')
+
+      // After tag name, could be space, >, or /
+      if (markdownSpace(code)) {
+        return tagNameAfter(code)
+      }
+
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      if (code === codes.slash) {
+        return selfClosing(code)
+      }
+
+      return nok(code)
+    }
+
+    function tagNameAfter(code) {
+      // Skip spaces, then could be attributes or >
+      if (markdownSpace(code)) {
+        effects.consume(code)
+        return tagNameAfter
+      }
+
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      // For simplicity, we'll skip attribute parsing here
+      // In real implementation, you'd parse attributes
+      // For now, consume until >
+      if (isNameStart(code)) {
+        return consumeAttribute(code)
+      }
+
+      return nok(code)
+    }
+
+    function consumeAttribute(code) {
+      // Simplified: consume until we hit >
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      if (code === codes.eof || markdownLineEnding(code)) {
+        return nok(code)
+      }
+
+      effects.consume(code)
+      return consumeAttribute
+    }
+
+    function selfClosing(code) {
+      effects.consume(code) // /
+      if (code === codes.greaterThan) {
+        effects.exit('htmlFlowTag')
+        effects.exit('htmlFlowElement')
+        return ok
+      }
+      return nok(code)
+    }
+
+    function tagEnd(code) {
+      effects.consume(code) // >
+      effects.exit('htmlFlowTag')
+
+      // KEY DECISION POINT!
+      // Check if there's a newline immediately after >
+      return afterTagEnd
+    }
+
+    function afterTagEnd(code) {
+      if (markdownLineEnding(code)) {
+        // Flow mode: newline after opening tag
+        // DON'T exit htmlFlowElement - keep it open!
+        // Micromark will parse block content inside
+        effects.consume(code)
+        return contentFlow
+      } else {
+        // Uh oh - content on same line as opening tag
+        // This is actually flow-level syntax but inline content
+        // You have two choices here:
+        // 1. Treat it as text element (switch to inline parsing)
+        // 2. Continue as flow but content starts immediately
+
+        // Let's do option 2: flow element with immediate content
+        // The content will be wrapped in <p> by markdown parser
+        return contentFlow(code)
+      }
+    }
+
+    function contentFlow(code) {
+      // Check for closing tag
+      if (code === codes.lessThan) {
+        // Try to parse closing tag
+        return effects.attempt(
+          closingTag(tagName),
+          afterClosingTag,
+          continueContent,
+        )(code)
+      }
+
+      if (code === codes.eof) {
+        return nok(code) // Unclosed tag
+      }
+
+      // Let micromark parse markdown content here!
+      // We return ok to let other constructs handle this
+      return ok(code)
+    }
+
+    function continueContent(code) {
+      // Not a closing tag, continue parsing content
+      if (markdownLineEnding(code)) {
+        effects.consume(code)
+        return contentFlow
+      }
+      return ok(code)
+    }
+
+    function afterClosingTag(code) {
+      // Successfully closed!
+      effects.exit('htmlFlowElement')
+      return ok(code)
+    }
+  }
+
+  // ============================================
+  // TEXT (INLINE) HTML
+  // ============================================
+
+  const htmlTextConstruct = {
+    name: 'htmlTextElement',
+    tokenize: tokenizeHtmlText,
+  }
+
+  function tokenizeHtmlText(effects, ok, nok) {
+    let tagName = ''
+
+    return start
+
+    function start(code) {
+      if (code !== codes.lessThan) return nok(code)
+
+      effects.enter('htmlTextElement')
+      effects.enter('htmlTextTag')
+      effects.consume(code) // <
+      return tagOpen
+    }
+
+    function tagOpen(code) {
+      if (code === codes.slash) {
+        return nok(code) // Closing tag handled separately
+      }
+
+      if (isNameStart(code)) {
+        effects.enter('htmlTextTagName')
+        tagName += String.fromCharCode(code)
+        effects.consume(code)
+        return tagNameChar
+      }
+
+      return nok(code)
+    }
+
+    function tagNameChar(code) {
+      if (isNameChar(code)) {
+        tagName += String.fromCharCode(code)
+        effects.consume(code)
+        return tagNameChar
+      }
+
+      effects.exit('htmlTextTagName')
+
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      if (markdownSpace(code)) {
+        return skipSpaces(code)
+      }
+
+      return nok(code)
+    }
+
+    function skipSpaces(code) {
+      if (markdownSpace(code)) {
+        effects.consume(code)
+        return skipSpaces
+      }
+
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      // Simplified: skip attributes
+      return consumeUntilClose(code)
+    }
+
+    function consumeUntilClose(code) {
+      if (code === codes.greaterThan) {
+        return tagEnd(code)
+      }
+
+      if (code === codes.eof || markdownLineEnding(code)) {
+        return nok(code)
+      }
+
+      effects.consume(code)
+      return consumeUntilClose
+    }
+
+    function tagEnd(code) {
+      effects.consume(code) // >
+      effects.exit('htmlTextTag')
+
+      // KEY: Text elements can't have newlines after opening tag
+      // They're inline, so content must be on same line
+      return contentText
+    }
+
+    function contentText(code) {
+      // Look for closing tag
+      if (code === codes.lessThan) {
+        return effects.check(
+          closingTag(tagName),
+          afterClosingTag,
+          continueContent,
+        )(code)
+      }
+
+      // Text elements can't span lines
+      if (markdownLineEnding(code) || code === codes.eof) {
+        return nok(code)
+      }
+
+      // Let micromark parse INLINE markdown here
+      // This will parse **bold**, *italic*, etc.
+      // but NOT paragraphs, lists, etc.
+      return ok(code)
+    }
+
+    function continueContent(code) {
+      // Consume as content
+      effects.enter('htmlTextData')
+      effects.consume(code)
+      effects.exit('htmlTextData')
+      return contentText
+    }
+
+    function afterClosingTag(code) {
+      effects.exit('htmlTextElement')
+      return ok(code)
+    }
+  }
+
+  // ============================================
+  // HELPER: Closing tag parser
+  // ============================================
+
+  function closingTag(expectedName) {
+    return {
+      tokenize: tokenizeClosingTag,
+      partial: true,
+    }
+
+    function tokenizeClosingTag(effects, ok, nok) {
+      let actualName = ''
+
+      return start
+
+      function start(code) {
+        if (code !== codes.lessThan) return nok(code)
+
+        effects.enter('htmlClosingTag')
+        effects.consume(code)
+        return slash
+      }
+
+      function slash(code) {
+        if (code !== codes.slash) return nok(code)
+        effects.consume(code)
+        return nameStart
+      }
+
+      function nameStart(code) {
+        if (!isNameStart(code)) return nok(code)
+        actualName += String.fromCharCode(code)
+        effects.consume(code)
+        return nameChar
+      }
+
+      function nameChar(code) {
+        if (isNameChar(code)) {
+          actualName += String.fromCharCode(code)
+          effects.consume(code)
+          return nameChar
+        }
+
+        // Check if name matches
+        if (actualName !== expectedName) {
+          return nok(code)
+        }
+
+        if (markdownSpace(code)) {
+          effects.consume(code)
+          return nameChar
+        }
+
+        if (code === codes.greaterThan) {
+          effects.consume(code)
+          effects.exit('htmlClosingTag')
+          return ok
+        }
+
+        return nok(code)
+      }
+    }
+  }
+
+  // ============================================
+  // HELPERS
+  // ============================================
+
+  function isNameStart(code) {
+    return (
+      (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
+      (code >= codes.lowercaseA && code <= codes.lowercaseZ)
+    )
+  }
+
+  function isNameChar(code) {
+    return (
+      isNameStart(code) ||
+      (code >= codes.digit0 && code <= codes.digit9) ||
+      code === codes.dash ||
+      code === codes.colon
+    )
+  }
+
+  export function remarkHtmlMarkdown() {
+    const data = this.data()
+    add('micromarkExtensions', htmlWithMarkdown())
+    add('fromMarkdownExtensions', fromMarkdown())
+
+    function add(field, value) {
+      const list = data[field] ? data[field] : (data[field] = [])
+      list.push(value)
+    }
+  }
+
+  function fromMarkdown() {
+    return {
+      enter: {
+        htmlFlowElement: enterHtmlFlowElement,
+        htmlTextElement: enterHtmlTextElement,
+      },
+      exit: {
+        htmlFlowElement: exitHtmlElement,
+        htmlTextElement: exitHtmlElement,
+        htmlFlowTagName: exitTagName,
+        htmlTextTagName: exitTagName,
+      },
+    }
+
+    function enterHtmlFlowElement(token) {
+      this.enter(
+        {
+          type: 'htmlFlowElement',
+          name: null,
+          children: [],
+        },
+        token,
+      )
+    }
+
+    function enterHtmlTextElement(token) {
+      this.enter(
+        {
+          type: 'htmlTextElement',
+          name: null,
+          children: [],
+        },
+        token,
+      )
+    }
+
+    function exitTagName(token) {
+      const node = this.stack[this.stack.length - 1]
+      node.name = this.sliceSerialize(token)
+    }
+
+    function exitHtmlElement(token) {
+      this.exit(token)
+    }
+  }
+
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkHtmlMarkdown)
+    .use(remarkRehype)
+    .use(rehypeStringify)
+
+  const result = await processor.process('<div>**test**</div>')
+  console.log(String(result))
+</script>

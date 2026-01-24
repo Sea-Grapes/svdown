@@ -1,9 +1,4 @@
-import { SvmdParser } from './parser'
-
-export interface PluginConfig {
-  extensions?: string[]
-  modifyFrontmatter?: Function
-}
+import { SvmdParser, PluginConfig } from './parser'
 
 export function markdown(config: PluginConfig) {
   let parser = new SvmdParser(config)

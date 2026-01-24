@@ -5,7 +5,7 @@ import { unified } from 'unified'
 import { PluginConfig } from '../../src'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import { findBracket } from '../../src/matchers'
+import { findSvelteBracketEnd } from '../../src/matchers'
 import { replaceStrSection } from '../../src/util'
 import type { Node, Root } from 'mdast'
 import { astInspect } from '../../src/dev'
@@ -140,7 +140,7 @@ export class SvmdParser {
 
       while (i < range.end) {
         if (content[i] === '{') {
-          const end = findBracket(content, i)
+          const end = findSvelteBracketEnd(content, i)
 
           if (end !== -1 && end < content.length) {
             const pairEnd = end + 1

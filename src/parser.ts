@@ -2,12 +2,11 @@ import hastToString from 'rehype-stringify'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
 import { unified } from 'unified'
-import { PluginConfig } from '.'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
 import {
-  findBracket,
-  findBracketCore,
+  findSvelteBracketEnd,
+  findJsBracketEnd,
   parseSvelteElement,
   SvelteElement,
 } from './matchers'
@@ -25,20 +24,34 @@ export async function parse(
   return res
 }
 
+export interface PluginConfig {
+  extensions?: string[]
+  modifyFrontmatter?: Function
+  allowMarkdownInHtml?: boolean
+}
+
 export class SvmdParser {
   config: PluginConfig
 
+  static defaultConfig: PluginConfig = {
+    allowMarkdownInHtml: true,
+  }
+
   constructor(config?: PluginConfig) {
     // Todo: default config + merging
-    this.config = config ?? {}
+    config = {
+      ...SvmdParser.defaultConfig,
+      ...config,
+    }
+
+    this.config = config
   }
 
   async parse(content: string, filename?: string): Promise<any> {
-    const html_regex = /<\/?[\w.:]+/g
+    const html_regex = /<\/?\w/g
 
     let html: SvelteElement[] = []
 
-    console.log('here')
     for (const match of content.matchAll(html_regex)) {
       const element = parseSvelteElement(content, match.index)
       if (element) {
@@ -63,6 +76,7 @@ export class SvmdParser {
       return (tree: Root) => {
         visit(tree, ['text', 'html'], (node: Node) => {
           if ('value' in node && typeof node.value === 'string') {
+            // todo: hide js expressions if needed
             node.value = node.value.replace(
               /<!--svdown-(\d+)-->/g,
               (_match, id) => html[Number(id)]?.text ?? _match,

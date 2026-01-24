@@ -22,276 +22,35 @@
     markdownSpace,
   } from 'https://esm.sh/micromark-util-character'
 
-  function htmlWithMarkdown() {
+  const ch = str => str.charCodeAt(0)
+
+  function micromark() {
     return {
-      text: {
-        [codes.lessThan]: htmlTextConstruct,
-      },
+      flow: {
+        [ch('<')]: {
+          tokenize,
+          concrete: true
+        }
+      }
     }
   }
 
-  const htmlTextConstruct = {
-    name: 'htmlTextElement',
-    tokenize: tokenizeHtmlText,
-  }
-
-  function tokenizeHtmlText(effects, ok, nok) {
+  function tokenize(effects, ok, nok) {
     const self = this
-    let tagName = ''
 
     return start
 
     function start(code) {
-      if (code !== codes.lessThan) return nok(code)
-
-      effects.enter('htmlTextElement')
-      effects.enter('htmlTextTag')
-      effects.consume(code) // <
-      return tagOpen
-    }
-
-    function tagOpen(code) {
-      if (code === codes.slash) {
-        return nok(code)
-      }
-
-      if (isNameStart(code)) {
-        effects.enter('htmlTextTagName')
-        tagName += String.fromCharCode(code)
-        effects.consume(code)
-        return tagNameChar
-      }
-
-      return nok(code)
-    }
-
-    function tagNameChar(code) {
-      if (isNameChar(code)) {
-        tagName += String.fromCharCode(code)
-        effects.consume(code)
-        return tagNameChar
-      }
-
-      effects.exit('htmlTextTagName')
-
-      if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-
-      if (markdownSpace(code)) {
-        return skipSpaces(code)
-      }
-
-      return nok(code)
-    }
-
-    function skipSpaces(code) {
-      if (markdownSpace(code)) {
-        effects.consume(code)
-        return skipSpaces
-      }
-
-      if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-
-      return consumeUntilClose(code)
-    }
-
-    function consumeUntilClose(code) {
-      if (code === codes.greaterThan) {
-        return tagEnd(code)
-      }
-
-      if (code === codes.eof || markdownLineEnding(code)) {
-        return nok(code)
-      }
-
-      effects.consume(code)
-      return consumeUntilClose
-    }
-
-    function tagEnd(code) {
-      effects.consume(code) // >
-      effects.exit('htmlTextTag')
-
-      // KEY: Don't exit htmlTextElement yet!
-      // Instead, look ahead for the closing tag
-      return effects.attempt(
-        { tokenize: tokenizeUntilClosing, partial: true },
-        afterContent,
-        nok,
-      )(code)
-    }
-
-    function tokenizeUntilClosing(effects, ok, nok) {
-      return contentStart
-
-      function contentStart(code) {
-        // Look for closing tag
-        if (code === codes.lessThan) {
-          return effects.check(
-            closingTag(tagName),
-            ok, // Found closing tag!
-            consumeContent,
-          )(code)
-        }
-
-        if (markdownLineEnding(code) || code === codes.eof) {
-          return nok(code)
-        }
-
-        return consumeContent(code)
-      }
-
-      function consumeContent(code) {
-        if (code === codes.lessThan) {
-          return contentStart(code)
-        }
-
-        if (markdownLineEnding(code) || code === codes.eof) {
-          return nok(code)
-        }
-
-        // Consume as data
-        effects.consume(code)
-        return contentStart
-      }
-    }
-
-    function afterContent(code) {
-      // Now consume the closing tag
-      return closingTagConsume(code)
-    }
-
-    function closingTagConsume(code) {
-      effects.enter('htmlClosingTag')
-      effects.consume(code) // <
-      return closingSlash
-    }
-
-    function closingSlash(code) {
-      effects.consume(code) // /
-      return closingName
-    }
-
-    function closingName(code) {
-      if (isNameChar(code)) {
-        effects.consume(code)
-        return closingName
-      }
-
-      if (markdownSpace(code)) {
-        effects.consume(code)
-        return closingName
-      }
-
-      if (code === codes.greaterThan) {
-        effects.consume(code)
-        effects.exit('htmlClosingTag')
-        effects.exit('htmlTextElement')
-        return ok
-      }
-
-      return nok(code)
+      effects.enter('svelteFlow')
     }
   }
 
-  function closingTag(expectedName) {
-    return {
-      tokenize: tokenizeClosingTag,
-      partial: true,
-    }
-
-    function tokenizeClosingTag(effects, ok, nok) {
-      let actualName = ''
-
-      return start
-
-      function start(code) {
-        if (code !== codes.lessThan) return nok(code)
-        effects.consume(code)
-        return slash
-      }
-
-      function slash(code) {
-        if (code !== codes.slash) return nok(code)
-        effects.consume(code)
-        return nameStart
-      }
-
-      function nameStart(code) {
-        if (!isNameStart(code)) return nok(code)
-        actualName += String.fromCharCode(code)
-        effects.consume(code)
-        return nameChar
-      }
-
-      function nameChar(code) {
-        if (isNameChar(code)) {
-          actualName += String.fromCharCode(code)
-          effects.consume(code)
-          return nameChar
-        }
-
-        if (actualName !== expectedName) {
-          return nok(code)
-        }
-
-        if (markdownSpace(code)) {
-          effects.consume(code)
-          return afterName
-        }
-
-        if (code === codes.greaterThan) {
-          effects.consume(code)
-          return ok
-        }
-
-        return nok(code)
-      }
-
-      function afterName(code) {
-        if (markdownSpace(code)) {
-          effects.consume(code)
-          return afterName
-        }
-
-        if (code === codes.greaterThan) {
-          effects.consume(code)
-          return ok
-        }
-
-        return nok(code)
-      }
-    }
-  }
-
-  function isNameStart(code) {
-    return (
-      (code >= codes.uppercaseA && code <= codes.uppercaseZ) ||
-      (code >= codes.lowercaseA && code <= codes.lowercaseZ)
-    )
-  }
-
-  function isNameChar(code) {
-    return (
-      isNameStart(code) ||
-      (code >= codes.digit0 && code <= codes.digit9) ||
-      code === codes.dash ||
-      code === codes.colon
-    )
-  }
-
-  function remarkHtmlMarkdown() {
+  function remarkSvelte() {
     const data = this.data()
-
     add('micromarkExtensions', {
       disable: { null: ['htmlText', 'htmlFlow'] },
     })
-
-    add('micromarkExtensions', htmlWithMarkdown())
-    add('fromMarkdownExtensions', fromMarkdown())
+    add('micromarkExtensions', micromark())
 
     function add(field, value) {
       const list = data[field] ? data[field] : (data[field] = [])
@@ -299,45 +58,21 @@
     }
   }
 
-  function fromMarkdown() {
-    return {
-      enter: {
-        htmlTextElement: enterHtmlTextElement,
-      },
-      exit: {
-        htmlTextElement: exitHtmlElement,
-        htmlTextTagName: exitTagName,
-      },
-    }
-
-    function enterHtmlTextElement(token) {
-      this.enter(
-        {
-          type: 'htmlTextElement',
-          name: null,
-          children: [],
-        },
-        token,
-      )
-    }
-
-    function exitTagName(token) {
-      const node = this.stack[this.stack.length - 1]
-      node.name = this.sliceSerialize(token)
-    }
-
-    function exitHtmlElement(token) {
-      this.exit(token)
-    }
-  }
-
   const processor = unified()
     .use(remarkParse)
-    .use(remarkHtmlMarkdown)
+    .use(remarkSvelte)
     .use(remarkRehype, {
       handlers: {
-        htmlTextElement: (h, node) => {
-          return h(node, node.name, node.children)
+        svelteHtml: (state, node) => {
+          // state.all() processes the children
+          const children = state.all(node)
+          // Return a hast element node
+          return {
+            type: 'element',
+            tagName: node.name,
+            properties: {},
+            children: children,
+          }
         },
       },
     })
@@ -346,12 +81,36 @@
   try {
     const result = await processor.process('<div>**test**</div>')
     console.log('Result:', String(result))
+
+    // Show both the HTML output and render it
     document.getElementById('output').innerHTML = `
-      <pre>Result: ${String(result)}</pre>
+      <div style="margin-bottom: 20px;">
+        <h3>HTML Output:</h3>
+        <pre style="background: #f0f0f0; padding: 10px;">${escapeHtml(String(result))}</pre>
+      </div>
+      <div>
+        <h3>Rendered:</h3>
+        <div style="border: 1px solid #ccc; padding: 10px;">
+          ${String(result)}
+        </div>
+      </div>
     `
   } catch (e) {
     console.error(e)
-    document.getElementById('output').innerHTML =
-      `<pre>Error: ${e.message}\n\n${e.stack}</pre>`
+    document.getElementById('output').innerHTML = `
+      <div style="color: red;">
+        <h3>Error:</h3>
+        <pre style="background: #fee; padding: 10px;">${escapeHtml(e.message)}\n\n${escapeHtml(e.stack)}</pre>
+      </div>
+    `
+  }
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
   }
 </script>

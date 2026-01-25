@@ -93,8 +93,7 @@ export class SvmdParser {
       avoid_ranges.sort((a, b) => a.start - b.start)
 
       // 2. find all html elements
-      let ranges_1 = [...avoid_ranges]
-      let range = ranges_1.shift()
+      let range = avoid_ranges.shift()
 
       let i = 0
       while (i < content.length) {
@@ -102,7 +101,7 @@ export class SvmdParser {
 
         if (range && range.start <= i && i <= range.end) {
           i = range.end + 1
-          range = ranges_1.shift()
+          range = avoid_ranges.shift()
           continue
         }
 
@@ -131,13 +130,14 @@ export class SvmdParser {
               end,
               text: content.slice(i, end + 1),
             })
-          }
+            i = end + 1
+          } else i++
+          continue
         }
 
         i++
-
-        content = str.toString()
       }
+      content = str.toString()
     }
 
     // replacing w/ comments allows markdown to parse inside html

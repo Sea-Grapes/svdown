@@ -92,9 +92,7 @@ export class SvmdParser {
       })
       avoid_ranges.sort((a, b) => a.start - b.start)
 
-      // 2. find all html elements
       let range = avoid_ranges.shift()
-
       let i = 0
       while (i < content.length) {
         const char = content[i]
@@ -111,7 +109,7 @@ export class SvmdParser {
             str.update(
               result.start,
               result.end + 1,
-              `\n<!--svdown-${html.length}-->\n`,
+              `\n<!--s-html-${html.length}-->\n`,
             )
             html.push(result)
             i = result.end + 1
@@ -124,7 +122,7 @@ export class SvmdParser {
         if (char === '{') {
           const end = findSvelteBracketEnd(content, i)
           if (end !== -1) {
-            str.update(i, end + 1, `svmd${js.length}`)
+            str.update(i, end + 1, `\uE000s-br-${js.length}`)
             js.push({
               start: i,
               end,
@@ -140,42 +138,23 @@ export class SvmdParser {
       content = str.toString()
     }
 
-    // replacing w/ comments allows markdown to parse inside html
-    // html.toReversed().forEach((node, i) => {
-    //   content = replaceStrSection(
-    //     content,
-    //     node.start,
-    //     node.end + 1,
-
-    //   )
-    // })
-
     // console.log('\nhtml:')>
     // console.log(JSON.stringify(html, null, 2))
 
     function restoreSvelte() {
       return (tree: Root) => {
-        visit(tree, ['text', 'html'], (node: Node) => {
+        visit(tree, (node: Node) => {
           if ('value' in node && typeof node.value === 'string') {
+            const text = node as Text
             // todo: hide js expressions if needed
-            node.value = node.value.replace(
-              /<!--svdown-(\d+)-->/g,
+            text.value = text.value.replace(
+              /<!--s-html-(\d+)-->/g,
               (_match, id) => html[Number(id)]?.text ?? _match,
             )
-          }
 
-          if (
-            node.type === 'text' &&
-            'value' in node &&
-            typeof node.value === 'string' &&
-            node.value.includes('svmd0')
-          ) {
-            // node.value = node.value.replaceAll('svmd0', () => {
-            //   return js_brackets.pop()?.text || 'svmd0'
-            // })
-          } else if (node.type === 'html') {
-            // let next = js_brackets.pop()
-            // next && ht_brackets.push(next)
+            text.value = text.value.replace(/\uE000s-br-(\d+)/g, (match, id) => {
+              return js[Number(id)]?.text || match
+            })
           }
         })
       }
@@ -183,7 +162,7 @@ export class SvmdParser {
 
     const parse = unified()
       .use(toMdast)
-      // .use(restoreSvelte)
+      .use(restoreSvelte)
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,

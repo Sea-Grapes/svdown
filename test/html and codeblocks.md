@@ -10,3 +10,8 @@
 ```
 
 `<div></div>`
+
+
+{() => {
+  console.log('test')
+}}

@@ -66,6 +66,7 @@ export class SvmdParser {
     let html: SvelteElement[] = []
 
     {
+      // 1. avoid code & inlineCode
       let mdast = fromMarkdown(content)
       let avoid_ranges: Array<{ start: number; end: number }> = []
       visit(mdast, ['code', 'inlineCode'], (node: Node) => {
@@ -80,7 +81,10 @@ export class SvmdParser {
           })
       })
       avoid_ranges.sort((a, b) => a.start - b.start)
-      let range = avoid_ranges.shift()
+
+      // 2. find all html elements
+      let ranges_1 = [...avoid_ranges]
+      let range = ranges_1.shift()
 
       let i = 0
       while (i < content.length) {
@@ -88,7 +92,7 @@ export class SvmdParser {
 
         if (range && range.start <= i && i <= range.end) {
           i = range.end + 1
-          range = avoid_ranges.shift()
+          range = ranges_1.shift()
           continue
         }
 
@@ -105,6 +109,10 @@ export class SvmdParser {
 
         i++
       }
+
+      // 3. find all brackets
+      let ranges_2 = avoid_ranges.concat(html)
+      ranges_2.sort((a, b) => a.start - b.start)
     }
 
     // replacing w/ comments allows markdown to parse inside html
@@ -150,7 +158,7 @@ export class SvmdParser {
 
     const parse = unified()
       .use(toMdast)
-      .use(restoreSvelte)
+      // .use(restoreSvelte)
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,

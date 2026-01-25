@@ -188,6 +188,14 @@ export function parseSvelteElement(
   while (i < string.length) {
     const char = string[i]
 
+    let tagName = ''
+
+    // there should never be another < inside html
+    // also slight efficiency improvement
+    if (char === '<') {
+      return null
+    }
+
     if (char === '"' || char === "'") {
       const quote = char
       i++

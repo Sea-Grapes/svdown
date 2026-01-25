@@ -48,6 +48,31 @@ export class SvmdParser {
   }
 
   async parse(content: string, filename?: string): Promise<any> {
+    /**
+     * Plan of action:
+     * parse mdast to find code blocks & avoid those
+     * look for basic html regex inside other ranges
+     * parse html ranges & replace them w/ comment
+     * collect text regions (inverse of html ranges)
+     * parse text regions for all bracket ranges
+     * replace bracket ranges w/ placeholder
+     * - default: alphanumeric placeholder "+svmd0" or something
+     * - logic blocks: html comment
+     * - todo: escape user-entered alphanumeric placeholder
+     * parse mdast
+     * restore things afterwards
+     */
+
+    let mdast = fromMarkdown(content)
+    let avoid_ranges = []
+    visit(mdast, ['code', 'inlineCode'], (node: Node) => {
+      if (node.position)
+        avoid_ranges.push({
+          start: node.position.start.offset,
+          end: node.position.end.offset,
+        })
+    })
+
     const html_regex = /<\/?\w/g
 
     let html: SvelteElement[] = []

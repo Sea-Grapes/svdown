@@ -867,3 +867,8 @@ Here the start tag will be block and the close will be inline. I have no idea ho
 Notes:
 - placeholding *all* html doesn't work because it breaks autolinks like <https://test.com> and stuff, since those won't be parsed as link. You could use a custom micromark html parser that allows `svelte:` and periods specifically. 
   - placeholding certain html might work, might not.
+
+
+- use fromMarkdown first to selectively find html in html/text tags, this avoids autolinks/code blocks (well auto links can be avoided anyway with more specific tagname matching I think, also only need to placehold tags with content i.e. having starting and ending tag)
+  - well actually its not really necessary cause of the double tag thing - I really just need to avoid code blocks, which tbh is a little tough.
+- use the new bracket matcher too

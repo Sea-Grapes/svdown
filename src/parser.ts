@@ -64,14 +64,15 @@ export class SvmdParser {
      * restore things afterwards
      */
 
-    interface InlineJs {
+    interface BracketData {
       start: number
       end: number
       text: string
+      isSvelteLogic: boolean
     }
 
     let html: SvelteElement[] = []
-    let js: InlineJs[] = []
+    let brackets: BracketData[] = []
 
     {
       let str = new MagicString(content)
@@ -122,11 +123,19 @@ export class SvmdParser {
         if (char === '{') {
           const end = findSvelteBracketEnd(content, i)
           if (end !== -1) {
-            str.update(i, end + 1, `\uE000s-br-${js.length}`)
-            js.push({
+            const text = content.slice(i, end + 1)
+            const isSvelteLogic = /{[#:/@]\w+/.test(text)
+
+            if (isSvelteLogic) {
+              str.update(i, end + 1, `\n<!--s-brac-${brackets.length}-->\n`)
+            } else {
+              str.update(i, end + 1, `\uE000s-br-${brackets.length}`)
+            }
+            brackets.push({
               start: i,
               end,
-              text: content.slice(i, end + 1),
+              text,
+              isSvelteLogic,
             })
             i = end + 1
           } else i++
@@ -152,9 +161,12 @@ export class SvmdParser {
               (_match, id) => html[Number(id)]?.text ?? _match,
             )
 
-            text.value = text.value.replace(/\uE000s-br-(\d+)/g, (match, id) => {
-              return js[Number(id)]?.text || match
-            })
+            text.value = text.value.replace(
+              /\uE000s-br-(\d+)/g,
+              (match, id) => {
+                return brackets[Number(id)]?.text || match
+              },
+            )
           }
         })
       }
@@ -166,15 +178,19 @@ export class SvmdParser {
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,
-        // allowDangerousCharacters: true,
+        allowDangerousCharacters: true,
       })
       // .use(astInspect())
       .use(hastToString, {
         allowDangerousHtml: true,
-        // allowDangerousCharacters: true,
+        allowDangerousCharacters: true,
       })
 
     content = String(await parse.process(content))
+
+    content = content.replace(/<!--s-brac-(\d+)-->/g, (match, id) => {
+      return brackets[Number(id)]?.text || match
+    })
 
     return {
       code: content,

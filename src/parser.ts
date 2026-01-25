@@ -63,24 +63,47 @@ export class SvmdParser {
      * restore things afterwards
      */
 
-    let mdast = fromMarkdown(content)
-    let avoid_ranges = []
-    visit(mdast, ['code', 'inlineCode'], (node: Node) => {
-      if (node.position)
-        avoid_ranges.push({
-          start: node.position.start.offset,
-          end: node.position.end.offset,
-        })
-    })
-
-    const html_regex = /<\/?\w/g
-
     let html: SvelteElement[] = []
 
-    for (const match of content.matchAll(html_regex)) {
-      const element = parseSvelteElement(content, match.index)
-      if (element) {
-        html.push(element)
+    {
+      let mdast = fromMarkdown(content)
+      let avoid_ranges: Array<{ start: number; end: number }> = []
+      visit(mdast, ['code', 'inlineCode'], (node: Node) => {
+        if (
+          node.position &&
+          node.position.start.offset &&
+          node.position.end.offset
+        )
+          avoid_ranges.push({
+            start: node.position.start.offset,
+            end: node.position.end.offset,
+          })
+      })
+      avoid_ranges.sort((a, b) => a.start - b.start)
+      let range = avoid_ranges.shift()
+
+      let i = 0
+      while (i < content.length) {
+        const char = content[i]
+
+        if (range && range.start <= i && i <= range.end) {
+          i = range.end + 1
+          range = avoid_ranges.shift()
+          continue
+        }
+
+        if (char === '<') {
+          const result = parseSvelteElement(content, i)
+          if (result && typeof result === 'object') {
+            html.push(result)
+            i = result.end + 1
+          } else if (typeof result === 'number') {
+            i = result
+          } else i++
+          continue
+        }
+
+        i++
       }
     }
 

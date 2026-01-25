@@ -179,7 +179,7 @@ export interface SvelteElement {
 export function parseSvelteElement(
   string: string,
   pos: number,
-): SvelteElement | null {
+): SvelteElement | number | null {
   if (string[pos] !== '<') return null
 
   let i = pos + 1
@@ -193,7 +193,7 @@ export function parseSvelteElement(
     // there should never be another < inside html
     // also slight efficiency improvement
     if (char === '<') {
-      return null
+      return i
     }
 
     if (char === '"' || char === "'") {
@@ -227,7 +227,11 @@ export function parseSvelteElement(
           } else i++
           continue
         }
+
+        i++
       }
+      i++
+      continue
     }
 
     if (char === '{') {
@@ -275,5 +279,5 @@ export function parseSvelteElement(
     i++
   }
 
-  return null
+  return i
 }

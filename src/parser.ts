@@ -14,6 +14,7 @@ import { replaceStrSection } from './util'
 import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
 import { inspect } from 'unist-util-inspect'
+import MagicString from 'magic-string'
 
 export async function parse(
   content: string,
@@ -63,9 +64,18 @@ export class SvmdParser {
      * restore things afterwards
      */
 
+    interface InlineJs {
+      start: number
+      end: number
+      text: string
+    }
+
     let html: SvelteElement[] = []
+    let js: InlineJs[] = []
 
     {
+      let str = new MagicString(content)
+
       // 1. avoid code & inlineCode
       let mdast = fromMarkdown(content)
       let avoid_ranges: Array<{ start: number; end: number }> = []
@@ -99,6 +109,11 @@ export class SvmdParser {
         if (char === '<') {
           const result = parseSvelteElement(content, i)
           if (result && typeof result === 'object') {
+            str.update(
+              result.start,
+              result.end + 1,
+              `\n<!--svdown-${html.length}-->\n`,
+            )
             html.push(result)
             i = result.end + 1
           } else if (typeof result === 'number') {
@@ -107,23 +122,33 @@ export class SvmdParser {
           continue
         }
 
-        i++
-      }
+        if (char === '{') {
+          const end = findSvelteBracketEnd(content, i)
+          if (end !== -1) {
+            str.update(i, end + 1, `svmd${js.length}`)
+            js.push({
+              start: i,
+              end,
+              text: content.slice(i, end + 1),
+            })
+          }
+        }
 
-      // 3. find all brackets
-      let ranges_2 = avoid_ranges.concat(html)
-      ranges_2.sort((a, b) => a.start - b.start)
+        i++
+
+        content = str.toString()
+      }
     }
 
     // replacing w/ comments allows markdown to parse inside html
-    html.toReversed().forEach((node, i) => {
-      content = replaceStrSection(
-        content,
-        node.start,
-        node.end + 1,
-        `\n<!--svdown-${html.length - 1 - i}-->\n`,
-      )
-    })
+    // html.toReversed().forEach((node, i) => {
+    //   content = replaceStrSection(
+    //     content,
+    //     node.start,
+    //     node.end + 1,
+
+    //   )
+    // })
 
     // console.log('\nhtml:')>
     // console.log(JSON.stringify(html, null, 2))

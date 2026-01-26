@@ -830,34 +830,31 @@ Evaluate best approach:
   - downside it requires placeholders may not be as "professional"
   - I think it's safer for brackets at least, because in a unified pipeline plugins are based on order precedence I think. So if someone had a random plugin that parsed brackets and we ran plugins before js bracket thingy, it might intefere. Of course this might not be a big issue but idk.
 
-
 # CONCLUSION (FOR REAL THIS TIME)
 
 JS expressions probably cannot use micromark extension, works way better with placeholding.
 
 for example this would very likely not work (I tested it and it didn't work)
+
 ```html
-this is inline <div onclick={
-  
-}>
-
-
-this is inline <div
-onclick={...}
-  *this blank line will break*
->
+this is inline
+<div onclick="{" }>
+  this is inline
+  <div onclick="{...}" *this blank line will break*></div>
+</div>
 ```
 
 JS expressions, its probably smarter to placehold (It will just avoid a lot of hassle). This covers 3 of the 4 cases:
+
 - inline js, js inside logic blocks (logic blocks as a whole), js expressions in html
 
-
 * Also some additional testing (test_micromark_4) shows that block->inline doesn't work anyway, like:
+
 ```html
 <div>**test**</div>
 ```
-Here the start tag will be block and the close will be inline. I have no idea how to solve this/how mdx solves it.
 
+Here the start tag will be block and the close will be inline. I have no idea how to solve this/how mdx solves it.
 
 # Possible final approach?
 
@@ -865,10 +862,38 @@ Here the start tag will be block and the close will be inline. I have no idea ho
 - now handle html; all the js is hidden. Should be easier to do
 
 Notes:
-- placeholding *all* html doesn't work because it breaks autolinks like <https://test.com> and stuff, since those won't be parsed as link. You could use a custom micromark html parser that allows `svelte:` and periods specifically. 
-  - placeholding certain html might work, might not.
 
+- placeholding _all_ html doesn't work because it breaks autolinks like <https://test.com> and stuff, since those won't be parsed as link. You could use a custom micromark html parser that allows `svelte:` and periods specifically.
+  - placeholding certain html might work, might not.
 
 - use fromMarkdown first to selectively find html in html/text tags, this avoids autolinks/code blocks (well auto links can be avoided anyway with more specific tagname matching I think, also only need to placehold tags with content i.e. having starting and ending tag)
   - well actually its not really necessary cause of the double tag thing - I really just need to avoid code blocks, which tbh is a little tough.
 - use the new bracket matcher too
+
+# Status
+
+I think I will just go all in on micromark now. Since I think I know a better strategy to avoid things getting wrapped in p.
+
+- basically if you use a custom ast node type, you can just enter/exit it based on stack.
+
+Say you had this:
+
+```
+{#if something}
+
+blah blah blah {/if}
+```
+
+the 2nd `{#if}` should get parsed by the inline one right? And usually that would result in it getting wrapped as p (since I did it as raw before).
+A custom ast avoids this though because `{#if}` is not actually emitted, it just exits the custom ast. So this would result in:
+
+```
+{
+  type: "svelteLogic"
+  children: []
+}
+```
+
+Some thoughts:
+
+- I should really evaluate 100% that micromark doesn't parse newlines inline. I'm 95% sure since I tested this before (unintentionally), but I want to be 100% sure

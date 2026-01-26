@@ -9,7 +9,7 @@ import {
   findJsBracketEnd,
   parseSvelteElement,
   SvelteElement,
-} from './matchers'
+} from '../experiments/snippets/matchers'
 import { replaceStrSection } from './util'
 import type { Node, Root, Text } from 'mdast'
 import { astInspect } from './dev'
@@ -49,132 +49,8 @@ export class SvmdParser {
   }
 
   async parse(content: string, filename?: string): Promise<any> {
-    /**
-     * Plan of action:
-     * parse mdast to find code blocks & avoid those
-     * look for basic html regex inside other ranges
-     * parse html ranges & replace them w/ comment
-     * collect text regions (inverse of html ranges)
-     * parse text regions for all bracket ranges
-     * replace bracket ranges w/ placeholder
-     * - default: alphanumeric placeholder "+svmd0" or something
-     * - logic blocks: html comment
-     * - todo: escape user-entered alphanumeric placeholder
-     * parse mdast
-     * restore things afterwards
-     */
-
-    interface BracketData {
-      start: number
-      end: number
-      text: string
-      isSvelteLogic: boolean
-    }
-
-    let html: SvelteElement[] = []
-    let brackets: BracketData[] = []
-
-    {
-      let str = new MagicString(content)
-
-      // 1. avoid code & inlineCode
-      let mdast = fromMarkdown(content)
-      let avoid_ranges: Array<{ start: number; end: number }> = []
-      visit(mdast, ['code', 'inlineCode'], (node: Node) => {
-        if (
-          node.position &&
-          node.position.start.offset &&
-          node.position.end.offset
-        )
-          avoid_ranges.push({
-            start: node.position.start.offset,
-            end: node.position.end.offset,
-          })
-      })
-      avoid_ranges.sort((a, b) => a.start - b.start)
-
-      let range = avoid_ranges.shift()
-      let i = 0
-      while (i < content.length) {
-        const char = content[i]
-
-        if (range && range.start <= i && i <= range.end) {
-          i = range.end + 1
-          range = avoid_ranges.shift()
-          continue
-        }
-
-        if (char === '<') {
-          const result = parseSvelteElement(content, i)
-          if (result && typeof result === 'object') {
-            str.update(
-              result.start,
-              result.end + 1,
-              `\n<!--s-html-${html.length}-->\n`,
-            )
-            html.push(result)
-            i = result.end + 1
-          } else if (typeof result === 'number') {
-            i = result
-          } else i++
-          continue
-        }
-
-        if (char === '{') {
-          const end = findSvelteBracketEnd(content, i)
-          if (end !== -1) {
-            const text = content.slice(i, end + 1)
-            const isSvelteLogic = /{[#:/@]\w+/.test(text)
-
-            if (isSvelteLogic) {
-              str.update(i, end + 1, `\n<!--s-brac-${brackets.length}-->\n`)
-            } else {
-              str.update(i, end + 1, `\uE000s-br-${brackets.length}`)
-            }
-            brackets.push({
-              start: i,
-              end,
-              text,
-              isSvelteLogic,
-            })
-            i = end + 1
-          } else i++
-          continue
-        }
-
-        i++
-      }
-      content = str.toString()
-    }
-
-    // console.log('\nhtml:')>
-    // console.log(JSON.stringify(html, null, 2))
-
-    function restoreSvelte() {
-      return (tree: Root) => {
-        visit(tree, (node: Node) => {
-          if ('value' in node && typeof node.value === 'string') {
-            const text = node as Text
-            // todo: hide js expressions if needed
-            text.value = text.value.replace(
-              /<!--s-html-(\d+)-->/g,
-              (_match, id) => html[Number(id)]?.text ?? _match,
-            )
-
-            text.value = text.value.replace(
-              /\uE000s-br-(\d+)/g,
-              (match, id) => {
-                return brackets[Number(id)]?.text || match
-              },
-            )
-          }
-        })
-      }
-    }
-
     const parse = unified()
       .use(toMdast)
-      .use(restoreSvelte)
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,
@@ -187,10 +63,6 @@ export class SvmdParser {
       })
 
     content = String(await parse.process(content))
-
-    content = content.replace(/<!--s-brac-(\d+)-->/g, (match, id) => {
-      return brackets[Number(id)]?.text || match
-    })
 
     return {
       code: content,

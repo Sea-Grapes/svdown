@@ -13,7 +13,6 @@
     "types": ["vite/client", "@sveltejs/kit"]
   },
   "include": [
-    "src/**/*"
-, "experiments/snippets/rewrite.ts"  ],
+    "src/**/*" ],
   "exclude": ["node_modules", "dist"]
 }

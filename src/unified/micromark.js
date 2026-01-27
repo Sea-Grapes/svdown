@@ -70,6 +70,8 @@ function parseJs(effects, ok, nok, depth = 1) {
   }
 
   function afterSlash(code) {
+    if (code === null) return nok(code)
+
     if (code === ch('/')) {
       effects.consume(code)
       return inLineComment
@@ -126,5 +128,41 @@ function parseJs(effects, ok, nok, depth = 1) {
       effects.consume(code)
       return next
     }
+  }
+}
+
+// handles svelte logic (like {#if}, {:else}, etc.)
+export function svelteLogic(effects, ok, nok) {
+  return start
+
+  function start(code) {
+    if (code !== ch('{')) return nok
+    effects.enter('svelteLogic')
+    effects.consume(code)
+    return afterBrace
+  }
+
+  function afterBrace(code) {
+    if (code === ch('#') || code === ch(':') || code === '/' || code === '@') {
+      effects.consume(code)
+      return parseJs(effects, end, nok)
+    }
+    return nok(code)
+  }
+
+  function end() {
+    // Todo: fix this with stack
+    effects.exit('svelteLogic')
+    return ok
+  }
+}
+
+// handles inline expressions (like {count > 5})
+export function svelteExpression(effects, ok, nok) {
+  return start
+
+  function start() {
+    if (code !== ch('{')) return nok(code)
+    effects.enter('svelteExpression')
   }
 }

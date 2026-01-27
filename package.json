@@ -37,6 +37,7 @@
     "@sveltejs/kit": "^2.31.1",
     "@types/mdast": "^4.0.4",
     "@types/unist": "^3.0.3",
+    "micromark-util-types": "^2.0.2",
     "svelte": "^5.4.0",
     "tsdown": "latest",
     "typescript": "^5.9.3",

@@ -1,14 +1,13 @@
 // This file contains the micromark extension that supports svelte syntax.
 // Docs: https://github.com/micromark/micromark?tab=readme-ov-file#creating-a-micromark-extension
+// Logic from https://github.com/sveltejs/svelte/blob/main/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js
 
-import { Code, State, Tokenizer } from 'micromark-util-types'
+const ch = (str) => str.charCodeAt(0)
 
-const ch = (str: string) => str.charCodeAt(0)
-
-const parseJs: Tokenizer = function (effects, ok, nok, depth = 1) {
+function parseJs(effects, ok, nok, depth = 1) {
   return inside
 
-  function inside(code: Code) {
+  function inside(code) {
     if (code === null) return nok(code)
 
     if (code === ch('{')) {
@@ -32,6 +31,7 @@ const parseJs: Tokenizer = function (effects, ok, nok, depth = 1) {
     }
 
     if (code === ch('/')) {
+      effects.consume(code)
       return afterSlash
     }
 
@@ -39,20 +39,18 @@ const parseJs: Tokenizer = function (effects, ok, nok, depth = 1) {
     return inside
   }
 
-  function inString(quote: Code) {
-    // a second function required so we can store the quote character,
-    // and thus match the correct one
-    return function currentString(code: Code): State | undefined {
+  function inString(quote) {
+    return function currentString(code) {
       if (code === null) return nok(code)
       effects.consume(code)
 
       if (code === quote) return inside
 
-      if (code === '\\'.charCodeAt(0)) {
+      if (code === ch('\\')) {
         return escapeCode(currentString)
       }
 
-      if (quote === '`'.charCodeAt(0) && code === '$'.charCodeAt(0)) {
+      if (quote === ch('`') && code === ch('$')) {
         return inStringTemplate
       }
 
@@ -60,19 +58,18 @@ const parseJs: Tokenizer = function (effects, ok, nok, depth = 1) {
     }
   }
 
-  function inStringTemplate(code: Code) {
-    if (code === '{'.charCodeAt(0)) {
+  function inStringTemplate(code) {
+    if (code === ch('{')) {
       effects.consume(code)
       depth++
       return inside
     }
 
-    // Todo: evaluate correctness (possible undef?)
     // continue with same string type
     return inString(ch('`'))(code)
   }
 
-  function afterSlash(code: Code) {
+  function afterSlash(code) {
     if (code === ch('/')) {
       effects.consume(code)
       return inLineComment
@@ -86,44 +83,45 @@ const parseJs: Tokenizer = function (effects, ok, nok, depth = 1) {
     return inRegex(code)
   }
 
-  function inLineComment(code: Code) {
+  function inLineComment(code) {
     if (code === null) return nok(code)
     effects.consume(code)
     if (code === ch('\n')) return inside
     return inLineComment
   }
 
-  function inBlockComment(code: Code) {
+  function inBlockComment(code) {
     if (code === null) return nok(code)
     effects.consume(code)
     if (code === ch('*')) return afterBlockCommentStar
     return inBlockComment
   }
 
-  function afterBlockCommentStar(code: Code) {
+  function afterBlockCommentStar(code) {
     // only break out of comment if exactly "*/"
-    if (code === '/'.charCodeAt(0)) {
+    if (code === ch('/')) {
       effects.consume(code)
       return inside
     }
     return inBlockComment(code)
   }
 
-  function inRegex(code: Code) {
+  function inRegex(code) {
     if (code === null) return nok(code)
     effects.consume(code)
 
-    if (code === '/'.charCodeAt(0)) return inside
+    if (code === ch('/')) return inside
 
-    if (code === '\\'.charCodeAt(0)) {
+    if (code === ch('\\')) {
       return escapeCode(inRegex)
     }
 
     return inRegex
   }
 
-  function escapeCode(next: (code: Code) => any) {
-    return function escaped(code: Code) {
+  // consumes escape character "\" and its next character
+  function escapeCode(next) {
+    return function escaped(code) {
       if (code === null) return nok(code)
       effects.consume(code)
       return next

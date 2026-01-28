@@ -164,5 +164,12 @@ export function svelteExpression(effects, ok, nok) {
   function start() {
     if (code !== ch('{')) return nok(code)
     effects.enter('svelteExpression')
+    effects.consume(code)
+    return parseJs(effects, end, nok, 1)
+  }
+
+  function end() {
+    effects.exit('svelteExpression')
+    return ok
   }
 }

@@ -897,3 +897,13 @@ A custom ast avoids this though because `{#if}` is not actually emitted, it just
 Some thoughts:
 
 - I should really evaluate 100% that micromark doesn't parse newlines inline. I'm 95% sure since I tested this before (unintentionally), but I want to be 100% sure
+
+Theoretically micromark extension object has these options:
+
+```js
+{
+  ;(tokenize, resolve, resolveTo, interrupt, concrete)
+}
+```
+
+Idk how true this is

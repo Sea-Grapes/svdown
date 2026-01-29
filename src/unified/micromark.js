@@ -2,6 +2,30 @@
 // Docs: https://github.com/micromark/micromark?tab=readme-ov-file#creating-a-micromark-extension
 // Logic from https://github.com/sveltejs/svelte/blob/main/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js
 
+// Design from https://github.com/mdx-js/mdx/blob/main/packages/remark-mdx/lib/index.js
+export function remarkSvelte() {
+  const data = this.data()
+
+  add('micromarkExtensions', parsers())
+  add('fromMarkdownExtensions', serializers())
+
+  function add(field, value) {
+    const list = data[field] ? data[field] : (data[field] = [])
+    list.push(value)
+  }
+}
+
+function parsers() {
+  const data = {
+    [ch('{')]: [{ tokenize: svelteLogic }, { tokenize: svelteExpression }],
+  }
+
+  return {
+    flow: data,
+    text: data,
+  }
+}
+
 const ch = (str) => str.charCodeAt(0)
 
 function parseJs(effects, ok, nok, depth = 1) {
@@ -171,5 +195,15 @@ export function svelteExpression(effects, ok, nok) {
   function end() {
     effects.exit('svelteExpression')
     return ok
+  }
+}
+
+export function svelteHtml(effects, ok, nok) {
+  return start
+
+  function start() {
+    if (code !== ch('<')) return nok(code)
+    effects.enter('svelteHtml')
+    effects.consume(code)
   }
 }

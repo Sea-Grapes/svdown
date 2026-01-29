@@ -30,10 +30,10 @@ function serializers() {
   return {
     enter: {
       svelteLogic(token) {
-        this.enter({ type: 'svelteLogic' }, token)
+        this.enter({ type: 'svelteLogic', value: this.sliceSerialize(token) }, token)
       },
       svelteExpression(token) {
-        this.enter({ type: 'svelteExpression' }, token)
+        this.enter({ type: 'svelteExpression', value: this.sliceSerialize(token) }, token)
       },
     },
     exit: {

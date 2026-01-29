@@ -907,3 +907,11 @@ Theoretically micromark extension object has these options:
 ```
 
 Idk how true this is
+
+
+Question: should I use micromark for all svelte syntax or just some?
+- general pros: seems professional
+- Should I use micromark for logic blocks?
+  - pros: don't need to avoid code blocks and stuff
+  - cons: inline can only be 1 line (may have a way to fix this though), slightly complex tracking logic of start/end tags
+- For inline js: probably very much yes, since it helps avoid stuff like latex

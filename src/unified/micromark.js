@@ -26,6 +26,27 @@ function parsers() {
   }
 }
 
+function serializers() {
+  return {
+    enter: {
+      svelteLogic(token) {
+        this.enter({ type: 'svelteLogic' }, token)
+      },
+      svelteExpression(token) {
+        this.enter({ type: 'svelteExpression' }, token)
+      },
+    },
+    exit: {
+      svelteLogic(token) {
+        this.exit(token)
+      },
+      svelteExpression(token) {
+        this.exit(token)
+      },
+    },
+  }
+}
+
 const ch = (str) => str.charCodeAt(0)
 
 function parseJs(effects, ok, nok, depth = 1) {
@@ -185,7 +206,7 @@ export function svelteLogic(effects, ok, nok) {
 export function svelteExpression(effects, ok, nok) {
   return start
 
-  function start() {
+  function start(code) {
     if (code !== ch('{')) return nok(code)
     effects.enter('svelteExpression')
     effects.consume(code)
@@ -201,7 +222,7 @@ export function svelteExpression(effects, ok, nok) {
 export function svelteHtml(effects, ok, nok) {
   return start
 
-  function start() {
+  function start(code) {
     if (code !== ch('<')) return nok(code)
     effects.enter('svelteHtml')
     effects.consume(code)

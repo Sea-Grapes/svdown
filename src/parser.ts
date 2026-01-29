@@ -2,19 +2,7 @@ import hastToString from 'rehype-stringify'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
 import { unified } from 'unified'
-import { fromMarkdown } from 'mdast-util-from-markdown'
-import { visit } from 'unist-util-visit'
-import {
-  findSvelteBracketEnd,
-  findJsBracketEnd,
-  parseSvelteElement,
-  SvelteElement,
-} from '../experiments/snippets/matchers'
-import { replaceStrSection } from './util'
-import type { Node, Root, Text } from 'mdast'
-import { astInspect } from './dev'
-import { inspect } from 'unist-util-inspect'
-import MagicString from 'magic-string'
+import { remarkSvelte } from './unified/micromark'
 
 export async function parse(
   content: string,
@@ -51,6 +39,7 @@ export class SvmdParser {
   async parse(content: string, filename?: string): Promise<any> {
     const parse = unified()
       .use(toMdast)
+      .use(remarkSvelte)
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,

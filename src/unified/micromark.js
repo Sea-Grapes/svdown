@@ -2,6 +2,8 @@
 // Docs: https://github.com/micromark/micromark?tab=readme-ov-file#creating-a-micromark-extension
 // Logic from https://github.com/sveltejs/svelte/blob/main/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js
 
+import { asciiAlpha } from "micromark-util-character"
+
 // Design from https://github.com/mdx-js/mdx/blob/main/packages/remark-mdx/lib/index.js
 export function remarkSvelte() {
   const data = this.data()
@@ -17,7 +19,13 @@ export function remarkSvelte() {
 
 function parsers() {
   const data = {
-    [ch('{')]: [{ tokenize: svelteLogic }, { tokenize: svelteExpression }],
+    [ch('{')]: [
+      { tokenize: parseSvelteLogic },
+      { tokenize: parseSvelteExpression },
+    ],
+    [ch('<')]: {
+      tokenize: parseSvelteHtml,
+    },
   }
 
   return {
@@ -30,24 +38,57 @@ function serializers() {
   return {
     enter: {
       svelteLogic(token) {
-        this.enter({ type: 'svelteLogic', value: this.sliceSerialize(token) }, token)
+        this.enter({ type: 'html', value: this.sliceSerialize(token) }, token)
       },
       svelteExpression(token) {
-        this.enter({ type: 'svelteExpression', value: this.sliceSerialize(token) }, token)
+        this.enter({ type: 'html', value: this.sliceSerialize(token) }, token)
+      },
+      svelteHtml(token) {
+        this.enter({ type: 'html', value: this.sliceSerialize(token) }, token)
       },
     },
-    exit: {
-      svelteLogic(token) {
-        this.exit(token)
-      },
-      svelteExpression(token) {
-        this.exit(token)
-      },
-    },
+    // exit: {
+    //   svelteLogic(token) {
+    //     this.exit(token)
+    //   },
+    //   svelteExpression(token) {
+    //     this.exit(token)
+    //   },
+    // },
   }
 }
 
 const ch = (str) => str.charCodeAt(0)
+
+// Design from https://github.com/micromark/micromark/blob/main/packages/micromark-core-commonmark/dev/lib/html-flow.js
+function parseSvelteHtml(effects, ok, nok) {
+  let isClosing
+  let tagName
+
+  return start
+
+  function start(code) {
+    if (code !== ch('<')) return nok(code)
+    effects.enter('svelteHtml')
+    effects.consume(code)
+    return open
+  }
+
+  function open(code) {
+    // don't handle comments, hopefully commonmark handles it
+    if (code === ch('!')) return nok
+
+    if (code === ch('/')) {
+      isClosing = true
+    }
+
+    if(asciiAlpha(code)) {
+      effects.consume(code)
+      tagName = String.fromCharCode(code)
+      return 
+    }
+  }
+}
 
 function parseJs(effects, ok, nok, depth = 1) {
   return inside
@@ -177,7 +218,7 @@ function parseJs(effects, ok, nok, depth = 1) {
 }
 
 // handles svelte logic (like {#if}, {:else}, etc.)
-export function svelteLogic(effects, ok, nok) {
+export function parseSvelteLogic(effects, ok, nok) {
   return start
 
   function start(code) {
@@ -203,7 +244,7 @@ export function svelteLogic(effects, ok, nok) {
 }
 
 // handles inline expressions (like {count > 5})
-export function svelteExpression(effects, ok, nok) {
+function parseSvelteExpression(effects, ok, nok) {
   return start
 
   function start(code) {
@@ -216,15 +257,5 @@ export function svelteExpression(effects, ok, nok) {
   function end() {
     effects.exit('svelteExpression')
     return ok
-  }
-}
-
-export function svelteHtml(effects, ok, nok) {
-  return start
-
-  function start(code) {
-    if (code !== ch('<')) return nok(code)
-    effects.enter('svelteHtml')
-    effects.consume(code)
   }
 }

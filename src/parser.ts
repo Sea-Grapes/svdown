@@ -2,7 +2,6 @@ import hastToString from 'rehype-stringify'
 import toMdast from 'remark-parse'
 import mdastToHast from 'remark-rehype'
 import { unified } from 'unified'
-import { remarkSvelte } from './unified/micromark'
 
 export async function parse(
   content: string,
@@ -39,7 +38,6 @@ export class SvmdParser {
   async parse(content: string, filename?: string): Promise<any> {
     const parse = unified()
       .use(toMdast)
-      .use(remarkSvelte)
       // .use(astInspect())
       .use(mdastToHast, {
         allowDangerousHtml: true,

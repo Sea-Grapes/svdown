@@ -31,7 +31,7 @@
   "scripts": {
     "build": "tsdown",
     "build:vercel": "pnpm i && tsdown",
-    "dev": "tsdown --watch"
+    "dev": "tsx --watch src/index.ts"
   },
   "devDependencies": {
     "@sveltejs/kit": "^2.65.0",

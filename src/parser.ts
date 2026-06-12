@@ -1,58 +1,31 @@
-import hastToString from 'rehype-stringify'
-import toMdast from 'remark-parse'
-import mdastToHast from 'remark-rehype'
+import string_to_mdast from 'remark-parse'
+import mdast_to_hast from 'remark-rehype'
+import hast_to_string from 'rehype-stringify'
 import { unified } from 'unified'
+import { astInspect } from './dev'
 
-export async function parse(
-  content: string,
-  { config, filename }: { config?: PluginConfig; filename?: string } = {},
-): Promise<string> {
-  const parser = new SvmdParser(config)
-  let res = await parser.parse(content, filename)
-  return res
-}
-
-export interface PluginConfig {
+export interface SvdownConfig {
   extensions?: string[]
   modifyFrontmatter?: Function
-  allowMarkdownInHtml?: boolean
 }
 
-export class SvmdParser {
-  config: PluginConfig
+export async function parse(text: string, config: SvdownConfig) {
+  const parse = unified()
+    .use(string_to_mdast)
+    .use(astInspect())
+    .use(mdast_to_hast, {
+      allowDangerousHtml: true,
+      allowDangerousCharacters: true,
+    })
+    // .use(astInspect())
+    .use(hast_to_string, {
+      allowDangerousHtml: true,
+      allowDangerousCharacters: true,
+    })
 
-  static defaultConfig: PluginConfig = {
-    allowMarkdownInHtml: true,
-  }
+  text = String(await parse.process(text))
 
-  constructor(config?: PluginConfig) {
-    // Todo: default config + merging
-    config = {
-      ...SvmdParser.defaultConfig,
-      ...config,
-    }
-
-    this.config = config
-  }
-
-  async parse(content: string, filename?: string): Promise<any> {
-    const parse = unified()
-      .use(toMdast)
-      // .use(astInspect())
-      .use(mdastToHast, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
-      // .use(astInspect())
-      .use(hastToString, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
-
-    content = String(await parse.process(content))
-
-    return {
-      code: content,
-    }
+  return {
+    code: text,
   }
 }

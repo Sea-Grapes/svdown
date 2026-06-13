@@ -71,12 +71,13 @@
   async function parse(text, config) {
     const parse = unified().use(string_to_mdast)
     const mdast = parse.parse(text)
-
     console.log(mdast)
 
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
-
     console.log(sanitized)
+
+    const svast = svparse(sanitized, { modern: true })
+    console.log(svast)
   }
 
   parse(`
@@ -103,9 +104,10 @@
   {/if}
 
   <button
-    onclick={}
+    onclick={()=>{}}
   > test
    test
 
+   </button>
   `)
 </script>

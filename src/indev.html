@@ -34,8 +34,50 @@
     }
   }
 
+  // Step 1: Blank out ranges before Svelte parse.
+  // (Svelte can't parse code blocks, inline code, custom nodes, etc.)
+
+  function blankMarkdownProtectedRanges(mdast, text) {
+    const ranges = []
+
+    const SVELTE_SAFE_NODE_TYPES = new Set([
+      'paragraph',
+      'heading',
+      'blockquote',
+      'list',
+      'listItem',
+      'emphasis',
+      'strong',
+      'delete', // strikethrough
+      'link',
+      'text',
+      'break',
+      'thematicBreak',
+      // html nodes are already raw, Svelte handles them fine
+      'html',
+    ])
+
+    visit(tree, (node) => {
+      if (!SVELTE_SAFE_NODE_TYPES.has(node.type)) {
+        ranges.push({
+          start: node.position.start.offset,
+          end: node.position.end.offset,
+        })
+        return SKIP
+      }
+    })
+
+    // Todo: improve and test performance. This just replaces the ranges with spaces.
+    const chars = text.split('')
+    for (const { start, end } of ranges) {
+      for (let i = start; i < end; i++) {
+        chards[i] = ' '
+      }
+    }
+    return chars.join('')
+  }
+
   function sveltePlugin() {
-    const nodes = ['text', 'html']
     return (tree) => {}
   }
 
@@ -48,7 +90,6 @@
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
       })
-      // .use(astInspect())
       .use(hast_to_string, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -62,32 +103,32 @@
   }
 
   parse(`
-# Test
-<button {@attach test()} onclick={() => {
-console.log('test')
-/aweoif/g
-}}>This is a **test**</button>
+  # Test
+  <button {@attach test()} onclick={() => {
+  console.log('test')
+  /aweoif/g
+  }}>This is a **test**</button>
 
-<div>Test **test**</div>
+  <div>Test **test**</div>
 
-\`\`\`html
-<div>this should not be parsed</div>
-\`\`\`
+  \`\`\`html
+  <div>this should not be parsed</div>
+  \`\`\`
 
-\`<div></div>\`
+  \`<div></div>\`
 
-{() => {
-console.log('test')
-5< 3
-}}
+  {() => {
+  console.log('test')
+  5< 3
+  }}
 
-{#if count < 5}
-{/if}
+  {#if count < 5}
+  {/if}
 
-<button
-  onclick={}
-> test
- test
+  <button
+    onclick={}
+  > test
+   test
 
-`)
+  `)
 </script>

@@ -21,7 +21,6 @@
 
   // Step 1: Blank out ranges before Svelte parse.
   // (Svelte can't parse code blocks, inline code, custom nodes, etc.)
-
   function blankMarkdownProtectedRanges(mdast, text) {
     const ranges = []
 
@@ -64,9 +63,12 @@
     return chars.join('')
   }
 
-  function sveltePlugin() {
-    return (tree) => {}
-  }
+  // Step 2: Parse svelte (which works now) and find Svelte-specific ranges.
+  // such as {#each}, {@attach}, <button onclick={()=>{}}>
+  function findSvelteRanges(svast) {}
+
+  // Step 3: Reconcile svelte ranges into the mdast.
+  function reconcileMdastAndSvelte(mdast, svelteRanges, text) {}
 
   async function parse(text, config) {
     const parse = unified().use(string_to_mdast)
@@ -76,8 +78,16 @@
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log(sanitized)
 
+    // Extracted for error-handling purposes, may want to return
+    // the broken mdast if svelte's parse fails.
     const svast = svparse(sanitized, { modern: true })
     console.log(svast)
+
+    const svelteRanges = findSvelteRanges(svast)
+    console.log(svelteRanges)
+
+    // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)
+    // console.log(final_mdast)
   }
 
   parse(`
@@ -110,4 +120,8 @@
 
    </button>
   `)
+
+  function sveltePlugin() {
+    return (tree) => {}
+  }
 </script>

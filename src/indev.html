@@ -19,21 +19,6 @@
   import { CONTINUE, EXIT, SKIP, visit } from 'https://esm.sh/unist-util-visit'
   import { parse as svparse } from 'https://esm.sh/svelte/compiler'
 
-  const astInspect = () => () => (tree) => {
-    console.log('inspecting tree')
-    console.log(inspect(tree, { color: true }))
-    console.log()
-  }
-
-  const astLog = () => {
-    return () => {
-      return (tree) => {
-        console.log('astLog')
-        console.log(tree)
-      }
-    }
-  }
-
   // Step 1: Blank out ranges before Svelte parse.
   // (Svelte can't parse code blocks, inline code, custom nodes, etc.)
 
@@ -41,6 +26,7 @@
     const ranges = []
 
     const SVELTE_SAFE_NODE_TYPES = new Set([
+      'root',
       'paragraph',
       'heading',
       'blockquote',
@@ -57,7 +43,8 @@
       'html',
     ])
 
-    visit(tree, (node) => {
+    visit(mdast, (node) => {
+      console.log(node.type)
       if (!SVELTE_SAFE_NODE_TYPES.has(node.type)) {
         ranges.push({
           start: node.position.start.offset,
@@ -71,7 +58,7 @@
     const chars = text.split('')
     for (const { start, end } of ranges) {
       for (let i = start; i < end; i++) {
-        chards[i] = ' '
+        if (chars[i] != '\n') chars[i] = ' '
       }
     }
     return chars.join('')
@@ -82,24 +69,14 @@
   }
 
   async function parse(text, config) {
-    const parse = unified()
-      .use(string_to_mdast)
-      .use(astLog())
-      .use(sveltePlugin)
-      .use(mdast_to_hast, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
-      .use(hast_to_string, {
-        allowDangerousHtml: true,
-        allowDangerousCharacters: true,
-      })
+    const parse = unified().use(string_to_mdast)
+    const mdast = parse.parse(text)
 
-    text = String(await parse.process(text))
+    console.log(mdast)
 
-    return {
-      code: text,
-    }
+    const sanitized = blankMarkdownProtectedRanges(mdast, text)
+
+    console.log(sanitized)
   }
 
   parse(`

@@ -926,3 +926,13 @@ New plan:
 - Plain text
 - "HTML"
 - Blockquotes
+
+NEWER PLAN
+
+So the approach would be:
+
+- Parse mdast (with code blocks etc. blanked for Svelte's sake, but positions preserved)
+- Parse Svelte AST on the sanitized source, collect ranges of Svelte-specific nodes ({expressions}, components, blocks)
+- Walk the mdast and for any node whose source range overlaps a Svelte range, replace that node with a raw html node containing the original source text for that range
+Now the mdast is complete and correct — remark plugins like ToC see the full document, Svelte nodes are sitting as opaque html nodes they'll ignore
+Run rehype / your emit step normally

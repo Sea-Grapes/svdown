@@ -16,6 +16,8 @@
   import hast_to_string from 'https://esm.sh/rehype-stringify'
   import { unified } from 'https://esm.sh/unified'
   import { inspect } from 'https://esm.sh/unist-util-inspect'
+  import { CONTINUE, EXIT, SKIP, visit } from 'https://esm.sh/unist-util-visit'
+  import { parse as svparse } from 'https://esm.sh/svelte/compiler'
 
   const astInspect = () => () => (tree) => {
     console.log('inspecting tree')
@@ -32,10 +34,16 @@
     }
   }
 
+  function sveltePlugin() {
+    const nodes = ['text', 'html']
+    return (tree) => {}
+  }
+
   async function parse(text, config) {
     const parse = unified()
       .use(string_to_mdast)
       .use(astLog())
+      .use(sveltePlugin)
       .use(mdast_to_hast, {
         allowDangerousHtml: true,
         allowDangerousCharacters: true,
@@ -54,44 +62,32 @@
   }
 
   parse(`
-    # Svelte Markdown Test File
+# Test
+<button {@attach test()} onclick={() => {
+console.log('test')
+/aweoif/g
+}}>This is a **test**</button>
 
-    This is a comprehensive test of mixed Svelte and Markdown syntax!
+<div>Test **test**</div>
 
-    ## Basic Markdown with Svelte Expressions
+\`\`\`html
+<div>this should not be parsed</div>
+\`\`\`
 
-    Here's some text with a {variable} and more text with {count + 1} expressions.
+\`<div></div>\`
 
-    **Bold text with {boldVar}** and *italic with {italicVar}*.
+{() => {
+console.log('test')
+5< 3
+}}
 
-    ## Svelte Logic Blocks
+{#if count < 5}
+{/if}
 
-    {#if showContent}
-      This content is conditionally rendered!
-    {/if}
+<button
+  onclick={}
+> test
+ test
 
-    {#if user}
-      Welcome back, {user.name}!
-    {:else}
-      Please log in.
-    {/if}
-
-    ## Lists with Svelte
-
-    - Item one with {item1}
-    - Item two with {item2}
-    - {#each items as item}
-      - {item.name}
-      {/each}
-
-    ### Numbered list
-
-    1. First {value1}
-    2. Second {value2}
-    3. {#each numbers as num}
-      {num}. Dynamic item
-      {/each}
-
-    ## Code Blocks
 `)
 </script>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indev</title>
+  </head>
+  <body>
+    indev
+  </body>
+</html>
+
+<script type="module">
+  import string_to_mdast from 'https://esm.sh/remark-parse'
+  import mdast_to_hast from 'https://esm.sh/remark-rehype'
+  import hast_to_string from 'https://esm.sh/rehype-stringify'
+  import { unified } from 'https://esm.sh/unified'
+  import { inspect } from 'https://esm.sh/unist-util-inspect'
+
+  const astInspect = () => () => (tree) => {
+    console.log('inspecting tree')
+    console.log(inspect(tree, { color: true }))
+    console.log()
+  }
+
+  const astLog = () => {
+    return () => {
+      return (tree) => {
+        console.log('astLog')
+        console.log(tree)
+      }
+    }
+  }
+
+  async function parse(text, config) {
+    const parse = unified()
+      .use(string_to_mdast)
+      .use(astLog())
+      .use(mdast_to_hast, {
+        allowDangerousHtml: true,
+        allowDangerousCharacters: true,
+      })
+      // .use(astInspect())
+      .use(hast_to_string, {
+        allowDangerousHtml: true,
+        allowDangerousCharacters: true,
+      })
+
+    text = String(await parse.process(text))
+
+    return {
+      code: text,
+    }
+  }
+
+  parse(`
+    # Svelte Markdown Test File
+
+    This is a comprehensive test of mixed Svelte and Markdown syntax!
+
+    ## Basic Markdown with Svelte Expressions
+
+    Here's some text with a {variable} and more text with {count + 1} expressions.
+
+    **Bold text with {boldVar}** and *italic with {italicVar}*.
+
+    ## Svelte Logic Blocks
+
+    {#if showContent}
+      This content is conditionally rendered!
+    {/if}
+
+    {#if user}
+      Welcome back, {user.name}!
+    {:else}
+      Please log in.
+    {/if}
+
+    ## Lists with Svelte
+
+    - Item one with {item1}
+    - Item two with {item2}
+    - {#each items as item}
+      - {item.name}
+      {/each}
+
+    ### Numbered list
+
+    1. First {value1}
+    2. Second {value2}
+    3. {#each numbers as num}
+      {num}. Dynamic item
+      {/each}
+
+    ## Code Blocks
+`)
+</script>

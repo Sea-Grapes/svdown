@@ -65,7 +65,9 @@
 
   // Step 2: Parse svelte (which works now) and find Svelte-specific ranges.
   // such as {#each}, {@attach}, <button onclick={()=>{}}>
-  function findSvelteRanges(svast) {}
+  function findSvelteRanges(svast) {
+    const ranges = []
+  }
 
   // Step 3: Reconcile svelte ranges into the mdast.
   function reconcileMdastAndSvelte(mdast, svelteRanges, text) {}
@@ -79,7 +81,7 @@
     console.log(sanitized)
 
     // Extracted for error-handling purposes, may want to return
-    // the broken mdast if svelte's parse fails.
+    // the broken mdast if svelte's parser fails.
     const svast = svparse(sanitized, { modern: true })
     console.log(svast)
 
@@ -119,6 +121,10 @@
    test
 
    </button>
+
+   <MyComponent title="some *text*">
+  content
+</MyComponent>
   `)
 
   function sveltePlugin() {

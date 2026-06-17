@@ -71,16 +71,25 @@
     const svast = svparse(text, { modern: true })
     console.log(svast)
 
+    console.log('markdown ranges:')
     const ranges = []
     walk(
       svast,
       {},
       {
-        Text(node) {
-          console.log(node)
-          // return if string is just empty whitespace.
+        Text(node, { path }) {
           // raw vs data: data has html entities converted to actual unicode
+          // return if string is just empty whitespace.
           if (node.raw.trim().length == 0) return
+
+          const parent = path.at(-1)
+
+          // console.log(parent)
+          // Not 100% sure if this is accurate enough. Avoids attribute for example
+          if (parent.type != 'Fragment') return
+
+          console.log(parent, node)
+          ranges.push({ start: node.start, end: node.end }) // potentially just push node
         },
       },
     )
@@ -105,39 +114,39 @@
   }
 
   parse(`
-  # Test
-  <button {@attach test()} onclick={() => {
-  console.log('test')
-  /aweoif/g
-  }}>This is a **test**</button>
+# Test
+<button {@attach test()} onclick={() => {
+console.log('test')
+/aweoif/g
+}}>This is a **test**</button>
 
-  <div>Test **test**</div>
+<div>Test **test**</div>
 
-  \`\`\`html
-  <div>this should not be parsed</div>
-  \`\`\`
+\`\`\`html
+<div>this should not be parsed</div>
+\`\`\`
 
-  \`<div></div>\`
+\`<div></div>\`
 
-  {() => {
-  console.log('test')
-  5< 3
-  }}
+{() => {
+console.log('test')
+5< 3
+}}
 
-  {#if count < 5}
-  {/if}
+{#if count < 5}
+{/if}
 
-  <button
-    onclick={()=>{}}
-  > test
-   test
+<button
+  onclick={()=>{}}
+> test
+  test
 
-   </button>
+  </button>
 
-   <MyComponent title="some *text*">
-  content
+  <MyComponent title="some *text*">
+content
 </MyComponent>
-  `)
+    `)
 
   function sveltePlugin() {
     return (tree) => {}

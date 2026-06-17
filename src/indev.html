@@ -71,7 +71,7 @@
     const svast = svparse(text, { modern: true })
     console.log(svast)
 
-    console.log('markdown ranges:')
+    // console.log('markdown ranges:')
     const markdownTextRanges = []
     walk(
       svast,
@@ -88,11 +88,23 @@
           // Not 100% sure if this is accurate enough. Avoids attribute for example
           if (parent.type != 'Fragment') return
 
-          console.log(parent, node)
+          // console.log(parent, node)
           markdownTextRanges.push({ start: node.start, end: node.end }) // potentially just push node
         },
       },
     )
+
+    const svelteRanges = []
+    let i = 0
+
+    for (const range of markdownTextRanges) {
+      if (range.start > i) svelteRanges.push({ start: i, end: range.start })
+      i = Math.max(i, range.end)
+    }
+
+    if (i < text.length) svelteRanges.push({ start: i, end: text.length })
+
+    return svelteRanges
   }
 
   // Step 3: Reconcile svelte ranges into the mdast.

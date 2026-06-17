@@ -72,7 +72,7 @@
     console.log(svast)
 
     console.log('markdown ranges:')
-    const ranges = []
+    const markdownTextRanges = []
     walk(
       svast,
       {},
@@ -89,7 +89,7 @@
           if (parent.type != 'Fragment') return
 
           console.log(parent, node)
-          ranges.push({ start: node.start, end: node.end }) // potentially just push node
+          markdownTextRanges.push({ start: node.start, end: node.end }) // potentially just push node
         },
       },
     )

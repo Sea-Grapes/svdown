@@ -17,7 +17,8 @@
   import { unified } from 'https://esm.sh/unified'
   import { inspect } from 'https://esm.sh/unist-util-inspect'
   import { CONTINUE, EXIT, SKIP, visit } from 'https://esm.sh/unist-util-visit'
-  import { parse as svparse } from 'https://esm.sh/svelte/compiler'
+  import { parse as svparse } from 'https://esm.sh/svelte@5.56.3/compiler'
+  import { walk } from 'https://esm.sh/zimmerframe@1.1.4'
 
   // Step 1: Blank out ranges before Svelte parse.
   // (Svelte can't parse code blocks, inline code, custom nodes, etc.)
@@ -65,8 +66,24 @@
 
   // Step 2: Parse svelte (which works now) and find Svelte-specific ranges.
   // such as {#each}, {@attach}, <button onclick={()=>{}}>
-  function findSvelteRanges(svast) {
+  // @todo add handling if svparse fails
+  function findSvelteRanges(text) {
+    const svast = svparse(text, { modern: true })
+    console.log(svast)
+
     const ranges = []
+    walk(
+      svast,
+      {},
+      {
+        Text(node) {
+          console.log(node)
+          // return if string is just empty whitespace.
+          // raw vs data: data has html entities converted to actual unicode
+          if (node.raw.trim().length == 0) return
+        },
+      },
+    )
   }
 
   // Step 3: Reconcile svelte ranges into the mdast.
@@ -80,12 +97,7 @@
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log(sanitized)
 
-    // Extracted for error-handling purposes, may want to return
-    // the broken mdast if svelte's parser fails.
-    const svast = svparse(sanitized, { modern: true })
-    console.log(svast)
-
-    const svelteRanges = findSvelteRanges(svast)
+    const svelteRanges = findSvelteRanges(sanitized)
     console.log(svelteRanges)
 
     // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)

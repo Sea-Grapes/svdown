@@ -50,6 +50,7 @@
           start: node.position.start.offset,
           end: node.position.end.offset,
         })
+        node.privateMarkdownRange = true
         return SKIP
       }
     })
@@ -69,7 +70,7 @@
   // @todo add handling if svparse fails
   function findSvelteRanges(text) {
     const svast = svparse(text, { modern: true })
-    console.log(svast)
+    console.log('svast', svast)
 
     // console.log('markdown ranges:')
     const markdownTextRanges = []
@@ -116,10 +117,11 @@
     console.log(mdast)
 
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
-    console.log(sanitized)
+    console.log('sanitized text', sanitized)
+    // console.log('sanitized mdast', mdast)
 
     const svelteRanges = findSvelteRanges(sanitized)
-    console.log(svelteRanges)
+    console.log('svelteRanges', svelteRanges)
 
     // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)
     // console.log(final_mdast)

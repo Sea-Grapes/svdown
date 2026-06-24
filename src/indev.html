@@ -44,7 +44,7 @@
     ])
 
     visit(mdast, (node) => {
-      console.log(node.type)
+      // console.log(node.type)
       if (!SVELTE_SAFE_NODE_TYPES.has(node.type)) {
         ranges.push({
           start: node.position.start.offset,
@@ -124,11 +124,10 @@
       .use(hast_to_string)
 
     const mdast = parse.parse(text) // this only calls the mdast parsing
-    console.log(mdast)
+    console.log('raw text -> mdast', mdast)
 
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log('sanitized text', sanitized)
-    // console.log('sanitized mdast', mdast)
 
     const svelteRanges = findSvelteRanges(sanitized)
     console.log('svelteRanges', svelteRanges)

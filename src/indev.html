@@ -81,19 +81,25 @@
         Text(node, { path }) {
           // raw vs data: data has html entities converted to actual unicode
           // return if string is just empty whitespace.
-          if (node.raw.trim().length == 0) return
+          // Nevermind cannot do that! Since whitespace is significant.
 
           const parent = path.at(-1)
 
-          // console.log(parent)
+          // console.log('parent', parent, 'son', node)
           // Not 100% sure if this is accurate enough. Avoids attribute for example
           if (parent.type != 'Fragment') return
 
           // console.log(parent, node)
-          markdownTextRanges.push({ start: node.start, end: node.end }) // potentially just push node
+          markdownTextRanges.push({
+            start: node.start,
+            end: node.end,
+            _text: node.raw,
+          }) // potentially just push node
         },
       },
     )
+
+    console.log('markdownTextRanges', markdownTextRanges)
 
     const svelteRanges = []
     let i = 0

@@ -36,7 +36,7 @@
       'strong',
       'delete', // strikethrough
       'link',
-      'text',
+      'text', // should we restrict text to certain parents? maybe paragraph/other safe nodes
       'break',
       'thematicBreak',
       // html nodes are already raw, Svelte handles them fine
@@ -112,8 +112,12 @@
   function reconcileMdastAndSvelte(mdast, svelteRanges, text) {}
 
   async function parse(text, config) {
-    const parse = unified().use(string_to_mdast)
-    const mdast = parse.parse(text)
+    const parse = unified()
+      .use(string_to_mdast) // make sure to add plugins later!
+      .use(mdast_to_hast)
+      .use(hast_to_string)
+
+    const mdast = parse.parse(text) // this only calls the mdast parsing
     console.log(mdast)
 
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
@@ -122,6 +126,10 @@
 
     const svelteRanges = findSvelteRanges(sanitized)
     console.log('svelteRanges', svelteRanges)
+
+    for (const range of svelteRanges) {
+      range.text = text.slice(range.start, range.end)
+    }
 
     // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)
     // console.log(final_mdast)

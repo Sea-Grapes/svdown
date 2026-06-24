@@ -134,7 +134,7 @@
     console.log('svelteRanges', svelteRanges)
 
     for (const range of svelteRanges) {
-      range.text = text.slice(range.start, range.end)
+      range._text = text.slice(range.start, range.end)
     }
 
     // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)

@@ -65,14 +65,13 @@
     return chars.join('')
   }
 
-  // Step 2: Parse svelte (which works now) and find Svelte-specific ranges.
-  // such as {#each}, {@attach}, <button onclick={()=>{}}>
+  // Step 2: Parse svelte (which works now) and rebuild the mdast
   // @todo add handling if svparse fails
-  function findSvelteRanges(text) {
+  function parseSvelte(text, mdast) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
-    // console.log('markdown ranges:')
+    /*
     const markdownTextRanges = []
     walk(
       svast,
@@ -98,24 +97,31 @@
         },
       },
     )
-
     console.log('markdownTextRanges', markdownTextRanges)
+    */
 
-    const svelteRanges = []
-    let i = 0
+    const newMdast = []
 
-    for (const range of markdownTextRanges) {
-      if (range.start > i) svelteRanges.push({ start: i, end: range.start })
-      i = Math.max(i, range.end)
+    // recursively get a section of mdast from a start to
+    // end position, splitting any nodes if necessary.
+    function getNodes(start, end, list, index, accumulation) {
+      // operates on 1 layer of the tree at time.
+
+      const next = list.at(index + 1)
+      if(!next) return list
+
+      // if(next)
     }
 
-    if (i < text.length) svelteRanges.push({ start: i, end: text.length })
+    for (const node of svast.fragment.nodes) {
+      // console.log(node)
+      if (node.type == 'Text') {
+        // find corresponding nodes in mdast
+      }
+    }
 
-    return svelteRanges
+    // console.log('newMdast', newMdast)
   }
-
-  // Step 3: Reconcile svelte ranges into the mdast.
-  function reconcileMdastAndSvelte(mdast, svelteRanges, text) {}
 
   async function parse(text, config) {
     const parse = unified()
@@ -129,23 +135,25 @@
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log('sanitized text', sanitized)
 
-    const svelteRanges = findSvelteRanges(sanitized)
-    console.log('svelteRanges', svelteRanges)
-
-    for (const range of svelteRanges) {
-      range._text = text.slice(range.start, range.end)
-    }
-
-    // const final_mdast = reconcileMdastAndSvelte(mdast, svelteRanges, text)
-    // console.log(final_mdast)
+    const final_mdast = parseSvelte(sanitized, mdast)
+    console.log(final_mdast)
   }
 
   parse(`
 # Test
+
 <button {@attach test()} onclick={() => {
 console.log('test')
 /aweoif/g
 }}>This is a **test**</button>
+
+<button
+  onclick={()=>{}}
+> test
+  test
+
+  </button>
+
 
 <div>Test **test**</div>
 
@@ -160,21 +168,21 @@ console.log('test')
 5< 3
 }}
 
+This is a test of {js} inline
+
 {#if count < 5}
 {/if}
-
-<button
-  onclick={()=>{}}
-> test
-  test
-
-  </button>
 
   <MyComponent title="some *text*">
 content
 </MyComponent>
 
-This is a test of {js} inline
+<SelfClosingComponent/>
+
+<SelfClosingComponent attr={() => {
+  
+}}/>
+
     `)
 
   function sveltePlugin() {

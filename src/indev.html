@@ -10,8 +10,6 @@
   </body>
 </html>
 
-<script src="slice.js"></script>
-
 <script type="module">
   import string_to_mdast from 'https://esm.sh/remark-parse'
   import mdast_to_hast from 'https://esm.sh/remark-rehype'
@@ -101,31 +99,6 @@
     )
     console.log('markdownTextRanges', markdownTextRanges)
     */
-
-    const newMdast = []
-
-    // recursively get a section of mdast from a start to
-    // end position, splitting any nodes if necessary.
-    function getNodes(start, end, list, index, accumulation) {
-      // operates on 1 layer of the tree at time.
-
-      const next = list.at(index + 1)
-      if (!next) return list
-
-      // if(next)
-    }
-
-    for (const node of svast.fragment.nodes) {
-      // console.log(node)
-      if (node.type == 'Text') {
-        const slice = mdcut.slice(mdast, node.start, node.end)
-        // newMdast.push(...nodes)
-        console.log(node.raw, slice.node)
-      }
-    }
-
-    console.log(mdast)
-    // console.log('newMdast', newMdast)
   }
 
   async function parse(text, config) {
@@ -140,8 +113,8 @@
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log('sanitized text', sanitized)
 
-    const final_mdast = parseSvelte(sanitized, mdast)
-    console.log(final_mdast)
+    parseSvelte(sanitized, mdast)
+    // console.log(final_mdast)
   }
 
   parse(`

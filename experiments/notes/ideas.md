@@ -934,5 +934,14 @@ So the approach would be:
 - Parse mdast (with code blocks etc. blanked for Svelte's sake, but positions preserved)
 - Parse Svelte AST on the sanitized source, collect ranges of Svelte-specific nodes ({expressions}, components, blocks)
 - Walk the mdast and for any node whose source range overlaps a Svelte range, replace that node with a raw html node containing the original source text for that range
-Now the mdast is complete and correct — remark plugins like ToC see the full document, Svelte nodes are sitting as opaque html nodes they'll ignore
-Run rehype / your emit step normally
+  Now the mdast is complete and correct — remark plugins like ToC see the full document, Svelte nodes are sitting as opaque html nodes they'll ignore
+  Run rehype / your emit step normally
+
+The actual final final plan maybe I hope
+
+- Get the svast svelte text positions
+- Actually get the text positions first.
+- Combine these with a private character delimiter (on its own line)
+- replace inline things with a inline private character
+
+- either swap these in the final string or in the mdast.

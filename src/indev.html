@@ -66,9 +66,9 @@
     return chars.join('')
   }
 
-  // Step 2: Parse svelte (which works now)
+  // Step 2: Parse svelte (which works now) and determine regions of markdown text, inline svelte, and block svelte
   // @todo add handling if svparse fails
-  function hide_svelte_ranges(text, raw) {
+  function flat_svast(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
     const output = []
@@ -153,8 +153,14 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const final = hide_svelte_ranges(sanitized, raw)
-    console.log(final)
+    const data = {
+      inline: [],
+      block: [],
+      
+    }
+
+    const flat = flat_svast(sanitized, raw)
+    console.log(flat)
   }
 
   parse(`

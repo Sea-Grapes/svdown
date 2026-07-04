@@ -71,12 +71,15 @@
   function hide_svelte_ranges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
+    const output = []
+    let i = 0
 
-    let result = ''
-
-    const push_text = (text) => (result += text)
-    const push_inline = () => (result += '<!--svmd:inline-->') //result.push({ type: 'inline' })
-    const push_block = () => (result += '\n<!--svmd:block-->\n') //result.push({ type: 'block' })
+    function flush_block(end) {
+      if (end > i) {
+        const start = i
+        output.push({ type: 'block', start, end, value: raw.slice(start, end) })
+      }
+    }
 
     const INLINE_TYPES = new Set([
       'ExpressionTag',
@@ -87,27 +90,6 @@
       'RenderTag',
       'AttachTag',
       'Comment',
-    ])
-
-    const BLOCK_TYPES = new Set([
-      'Component',
-      'TitleElement',
-      'SlotElement',
-      'RegularElement',
-      'SvelteBody',
-      'SvelteBoundary',
-      'SvelteComponent',
-      'SvelteDocument',
-      'SvelteElement',
-      'SvelteFragment',
-      'SvelteHead',
-      'SvelteSelf',
-      'SvelteWindow',
-      'EachBlock',
-      'IfBlock',
-      'AwaitBlock',
-      'KeyBlock',
-      'SnippetBlock',
     ])
 
     function get_fragments(node) {
@@ -128,32 +110,43 @@
     }
 
     function handle_fragment(fragment) {
-      for (const node of fragment.nodes) {
-        handle_node(node)
-      }
+      for (const node of fragment.nodes) handle_node(node)
     }
 
+    function emit(type, node) {}
+
+    // Uses inline/text nodes as reference
+    // Flushes previous block region if any
     function handle_node(node) {
       if (node.type === 'Text') {
-        return push_text(raw.slice(node.start, node.end))
+        flush_block(node.start)
+        output.push({
+          type: 'text',
+          start: node.start,
+          end: node.end,
+          value: raw.slice(node.start, node.end),
+        })
+        i = node.end
+        return
       } else if (INLINE_TYPES.has(node.type)) {
-        return push_inline()
-      } else if (BLOCK_TYPES.has(node.type)) {
-        push_block()
-        for (const fragment of get_fragments(node)) {
-          handle_fragment(fragment)
-        }
-        push_block()
+        flush_block(node.start)
+        output.push({
+          type: 'inline',
+          start: node.start,
+          end: node.end,
+          value: raw.slice(node.start, node.end),
+        })
+        i = node.end
         return
       } else {
-        console.warn(`unhandled node type: ${node.type}, defaulting to block`)
-        push_block()
+        for (const fragment of get_fragments(node)) handle_fragment(fragment)
       }
     }
 
     handle_fragment(svast.fragment)
+    flush_block(raw.length)
 
-    return result
+    return output
   }
 
   async function parse(raw, config) {
@@ -201,6 +194,8 @@ console.log('test')
 console.log('test')
 5< 3
 }}
+
+{test1}{test2}
 
 This is a test of {js} inline
 

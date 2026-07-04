@@ -71,68 +71,82 @@
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
-    const markdownTextRanges = []
-    walk(
-      svast,
-      {},
-      {
-        Text(node, { path, next }) {
-          // raw vs data: data has html entities converted to actual unicode
-          // return if string is just empty whitespace.
-          // Nevermind cannot do that! Since whitespace is significant.
+    let result = ''
 
-          const parent = path.at(-1)
+    const push_text = (text) => (result += text)
+    const push_inline = () => (result += '\uE000') //result.push({ type: 'inline' })
+    const push_block = () => (result += '\uE001') //result.push({ type: 'block' })
 
-          // console.log('parent', parent, 'son', node)
-          // Not 100% sure if this is accurate enough. Avoids attribute for example
-          if (parent.type != 'Fragment') return
+    const INLINE_TYPES = new Set([
+      'ExpressionTag',
+      'HtmlTag',
+      'ConstTag',
+      'DeclarationTag',
+      'DebugTag',
+      'RenderTag',
+      'AttachTag',
+      'Comment',
+    ])
 
-          // console.log(parent, node)
-          markdownTextRanges.push({
-            start: node.start,
-            end: node.end,
-            _text: node.raw,
-          }) // potentially just push node
-          next()
-        },
-      },
-    )
-    console.log('markdownTextRanges', markdownTextRanges)
+    const BLOCK_TYPES = new Set([
+      'Component',
+      'TitleElement',
+      'SlotElement',
+      'RegularElement',
+      'SvelteBody',
+      'SvelteBoundary',
+      'SvelteComponent',
+      'SvelteDocument',
+      'SvelteElement',
+      'SvelteFragment',
+      'SvelteHead',
+      'SvelteSelf',
+      'SvelteWindow',
+      'EachBlock',
+      'IfBlock',
+      'AwaitBlock',
+      'KeyBlock',
+      'SnippetBlock',
+    ])
 
-    // I think only html elements (with fragment) and logic blocks need block placeholders
-    // walk(
-    //   svast,
-    //   {},
-    //   {
-    //     _(node, { next }) {
-    //       console.log(node)
-    //       // next()
-    //     },
-    //   },
-    // )
+    function get_fragments(node) {
+      switch (node.type) {
+        case 'EachBlock':
+          return [node.body, node.fallback].filter(Boolean)
+        case 'IfBlock':
+          return [node.consequent, node.alternate].filter(Boolean)
+        case 'AwaitBlock':
+          return [node.pending, node.then, node.catch].filter(Boolean)
+        case 'KeyBlock':
+          return [node.fragment]
+        case 'SnippetBlock':
+          return [node.body]
+        default:
+          return node.fragment ? [node.fragment] : []
+      }
+    }
 
-    const result = []
+    function handle_fragment(fragment) {
+      for (const node of fragment.nodes) {
+        handle_node(node)
+      }
+    }
 
-    function recurse(nodes) {
-      for (const node of nodes) {
-        if (node.type == 'Text')
-          return result.push({
-            type: 'text',
-            value: node.raw,
-          })
-        else if (
-          node.type == 'RegularElement' &&
-          node.fragment.nodes.length >= 1
-        ) {
-          result.push({
-            type: 'block',
-          })
-          recurse(node.fragment.nodes)
-          result.push({
-            type: 'block',
-          })
-        } else if (node.type == 'IfBlock') {
-        } else result.push({ type: 'inline' })
+    function handle_node(node) {
+      if (node.type === 'Text') {
+        return push_text(node.raw)
+      } else if (INLINE_TYPES.has(node.type)) {
+        return push_inline()
+      } else if (BLOCK_TYPES.has(node.type)) {
+        push_block()
+        for (const fragment of get_fragments(node)) {
+          handle_fragment(fragment)
+        }
+        push_block()
+        return
+      } else {
+        console.warn(`unhandled node type: ${node.type}`)
+        push_block()
       }
     }
   }

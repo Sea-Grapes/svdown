@@ -73,7 +73,8 @@
     console.log('svast', svast)
 
     const output = {
-      nodes: [],
+      inline: [],
+      block: [],
       text: '',
     }
     let i = 0
@@ -114,12 +115,7 @@
       // Uses inline/text nodes as reference, flushes previous block region if any
       if (end > i) {
         const start = i
-        output.nodes.push({
-          type: 'block',
-          start,
-          end,
-          value: raw.slice(start, end),
-        })
+        output.block.push(raw.slice(start, end))
         output.text += `\n<!--svmd:block-->\n`
       }
     }
@@ -127,16 +123,14 @@
     function handle_node(node) {
       if (node.type === 'Text' || INLINE_TYPES.has(node.type)) {
         handle_block(node.start)
-
-        const type = node.type === 'Text' ? 'text' : 'inline'
         const text = raw.slice(node.start, node.end)
-        output.nodes.push({
-          type,
-          start: node.start,
-          end: node.end,
-          value: text,
-        })
-        output.text += node.type === 'Text' ? text : `<!--svmd:inline-->`
+
+        if (node.type === 'Text') {
+          output.text += text
+        } else {
+          output.inline.push(text)
+          output.text += `<!--svmd:inline-->`
+        }
 
         i = node.end
       } else {
@@ -163,8 +157,8 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const { nodes, text } = hide_svelte_ranges(sanitized, raw)
-    console.log(text)
+    const output = hide_svelte_ranges(sanitized, raw)
+    console.log(output)
   }
 
   parse(`

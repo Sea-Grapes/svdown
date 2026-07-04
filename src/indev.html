@@ -71,7 +71,8 @@
   function hide_svelte_ranges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
-    const output = []
+    const output_nodes = []
+    let output_text = []
     let i = 0
 
     const INLINE_TYPES = new Set([
@@ -106,38 +107,41 @@
       for (const node of fragment.nodes) handle_node(node)
     }
 
-    function push_block(end) {
+    function handle_block(end) {
       if (end > i) {
         const start = i
-        output.push({ type: 'block', start, end, value: raw.slice(start, end) })
+        output_nodes.push({
+          type: 'block',
+          start,
+          end,
+          value: raw.slice(start, end),
+        })
       }
-    }
-
-    function push_node(type, node) {
-      push_block(node.start)
-
-      output.push({
-        type,
-        start: node.start,
-        end: node.end,
-        value: raw.slice(node.start, node.end),
-      })
-
-      i = node.end
     }
 
     function handle_node(node) {
       // Uses inline/text nodes as reference, flushes previous block region if any
-      if (node.type === 'Text') return push_node('text', node)
-      else if (INLINE_TYPES.has(node.type)) return push_node('inline', node)
+      if (node.type === 'Text' || INLINE_TYPES.has(node.type)) {
+        handle_block(node.start)
 
-      for (const fragment of get_fragments(node)) handle_fragment(fragment)
+        const type = node.type === 'Text' ? 'text' : 'inline'
+        output_nodes.push({
+          type,
+          start: node.start,
+          end: node.end,
+          value: raw.slice(node.start, node.end),
+        })
+
+        i = node.end
+      } else {
+        for (const fragment of get_fragments(node)) handle_fragment(fragment)
+      }
     }
 
     handle_fragment(svast.fragment)
-    push_block(raw.length)
+    handle_block(raw.length)
 
-    return output
+    return output_nodes
   }
 
   async function parse(raw, config) {

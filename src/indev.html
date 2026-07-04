@@ -67,7 +67,7 @@
 
   // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function blankSvelteProtectedRanges(text) {
+  function blankSvelteProtectedRanges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
@@ -75,7 +75,7 @@
 
     const push_text = (text) => (result += text)
     const push_inline = () => (result += '\uE000') //result.push({ type: 'inline' })
-    const push_block = () => (result += '\uE001') //result.push({ type: 'block' })
+    const push_block = () => (result += '\n\uE001\n') //result.push({ type: 'block' })
 
     const INLINE_TYPES = new Set([
       'ExpressionTag',
@@ -134,7 +134,7 @@
 
     function handle_node(node) {
       if (node.type === 'Text') {
-        return push_text(node.raw)
+        return push_text(raw.slice(node.start, node.end))
       } else if (INLINE_TYPES.has(node.type)) {
         return push_inline()
       } else if (BLOCK_TYPES.has(node.type)) {
@@ -149,6 +149,10 @@
         push_block()
       }
     }
+
+    handle_fragment(svast.fragment)
+
+    return result
   }
 
   async function parse(text, config) {
@@ -163,8 +167,8 @@
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log('sanitized text', sanitized)
 
-    const test = blankSvelteProtectedRanges(sanitized)
-    // console.log(final_mdast)
+    const test = blankSvelteProtectedRanges(sanitized, text)
+    console.log(test)
   }
 
   parse(`

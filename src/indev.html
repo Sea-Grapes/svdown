@@ -66,12 +66,17 @@
     return chars.join('')
   }
 
-  // Step 2: Parse svelte (which works now) and determine regions of markdown text, inline svelte, and block svelte
+  // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function flat_svast(text, raw) {
+  function hide_svelte_ranges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
-    const output = []
+
+    const output = {
+      inline: [],
+      block: [],
+      text: '',
+    }
     let i = 0
 
     const INLINE_TYPES = new Set([
@@ -106,36 +111,35 @@
       for (const node of fragment.nodes) handle_node(node)
     }
 
-    function push_block(end) {
+    function handle_block(end) {
+      // Uses inline/text nodes as reference, flushes previous block region if any
       if (end > i) {
         const start = i
-        output.push({ type: 'block', start, end, value: raw.slice(start, end) })
+        output.block.push(raw.slice(start, end))
+        output.text += `\n<!--svmd:block-->\n`
       }
     }
 
-    function push_node(type, node) {
-      push_block(node.start)
-
-      output.push({
-        type,
-        start: node.start,
-        end: node.end,
-        value: raw.slice(node.start, node.end),
-      })
-
-      i = node.end
-    }
-
     function handle_node(node) {
-      // Uses inline/text nodes as reference, flushes previous block region if any
-      if (node.type === 'Text') return push_node('text', node)
-      else if (INLINE_TYPES.has(node.type)) return push_node('inline', node)
+      if (node.type === 'Text' || INLINE_TYPES.has(node.type)) {
+        handle_block(node.start)
+        const text = raw.slice(node.start, node.end)
 
-      for (const fragment of get_fragments(node)) handle_fragment(fragment)
+        if (node.type === 'Text') {
+          output.text += text
+        } else {
+          output.inline.push(text)
+          output.text += `<!--svmd:inline-->`
+        }
+
+        i = node.end
+      } else {
+        for (const fragment of get_fragments(node)) handle_fragment(fragment)
+      }
     }
 
     handle_fragment(svast.fragment)
-    push_block(raw.length)
+    handle_block(raw.length)
 
     return output
   }
@@ -144,8 +148,8 @@
     const pipeline = unified()
       .use(string_to_mdast) // make sure to add plugins later!
       .use(remark_svelte_placeholders)
-      .use(mdast_to_hast)
-      .use(hast_to_string)
+      .use(mdast_to_hast, { allowDangerousHtml: true })
+      .use(hast_to_string, { allowDangerousHtml: true })
 
     const mdast = pipeline.parse(raw) // this only calls the mdast parsing
     console.log('raw text -> mdast', mdast)
@@ -153,14 +157,11 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const data = {
-      inline: [],
-      block: [],
-      
-    }
+    const output = hide_svelte_ranges(sanitized, raw)
+    console.log(output)
 
-    const flat = flat_svast(sanitized, raw)
-    console.log(flat)
+    const text = pipeline.processSync(output.text)
+    console.log(text.toString())
   }
 
   parse(`

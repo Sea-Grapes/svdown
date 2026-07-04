@@ -74,13 +74,6 @@
     const output = []
     let i = 0
 
-    function flush_block(end) {
-      if (end > i) {
-        const start = i
-        output.push({ type: 'block', start, end, value: raw.slice(start, end) })
-      }
-    }
-
     const INLINE_TYPES = new Set([
       'ExpressionTag',
       'HtmlTag',
@@ -113,38 +106,36 @@
       for (const node of fragment.nodes) handle_node(node)
     }
 
-    function emit(type, node) {}
-
-    // Uses inline/text nodes as reference
-    // Flushes previous block region if any
-    function handle_node(node) {
-      if (node.type === 'Text') {
-        flush_block(node.start)
-        output.push({
-          type: 'text',
-          start: node.start,
-          end: node.end,
-          value: raw.slice(node.start, node.end),
-        })
-        i = node.end
-        return
-      } else if (INLINE_TYPES.has(node.type)) {
-        flush_block(node.start)
-        output.push({
-          type: 'inline',
-          start: node.start,
-          end: node.end,
-          value: raw.slice(node.start, node.end),
-        })
-        i = node.end
-        return
-      } else {
-        for (const fragment of get_fragments(node)) handle_fragment(fragment)
+    function push_block(end) {
+      if (end > i) {
+        const start = i
+        output.push({ type: 'block', start, end, value: raw.slice(start, end) })
       }
     }
 
+    function push_node(type, node) {
+      push_block(node.start)
+
+      output.push({
+        type,
+        start: node.start,
+        end: node.end,
+        value: raw.slice(node.start, node.end),
+      })
+
+      i = node.end
+    }
+
+    function handle_node(node) {
+      // Uses inline/text nodes as reference, flushes previous block region if any
+      if (node.type === 'Text') return push_node('text', node)
+      else if (INLINE_TYPES.has(node.type)) return push_node('inline', node)
+
+      for (const fragment of get_fragments(node)) handle_fragment(fragment)
+    }
+
     handle_fragment(svast.fragment)
-    flush_block(raw.length)
+    push_block(raw.length)
 
     return output
   }

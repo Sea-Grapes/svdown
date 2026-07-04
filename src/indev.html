@@ -10,6 +10,7 @@
   </body>
 </html>
 
+<script src="unified.js"></script>
 <script type="module">
   import string_to_mdast from 'https://esm.sh/remark-parse'
   import mdast_to_hast from 'https://esm.sh/remark-rehype'
@@ -74,8 +75,8 @@
     let result = ''
 
     const push_text = (text) => (result += text)
-    const push_inline = () => (result += '\uE000') //result.push({ type: 'inline' })
-    const push_block = () => (result += '\n\uE001\n') //result.push({ type: 'block' })
+    const push_inline = () => (result += '<!--svmd:inline-->') //result.push({ type: 'inline' })
+    const push_block = () => (result += '\n<!--svmd:block-->\n') //result.push({ type: 'block' })
 
     const INLINE_TYPES = new Set([
       'ExpressionTag',
@@ -145,7 +146,7 @@
         push_block()
         return
       } else {
-        console.warn(`unhandled node type: ${node.type}`)
+        console.warn(`unhandled node type: ${node.type}, defaulting to block`)
         push_block()
       }
     }
@@ -158,6 +159,7 @@
   async function parse(raw, config) {
     const pipeline = unified()
       .use(string_to_mdast) // make sure to add plugins later!
+      .use(remark_svelte_placeholders)
       .use(mdast_to_hast)
       .use(hast_to_string)
 

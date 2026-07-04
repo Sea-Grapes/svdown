@@ -22,7 +22,7 @@
 
   // Step 1: Blank out ranges before Svelte parse.
   // (Svelte can't parse code blocks, inline code, custom nodes, etc.)
-  function blankMarkdownProtectedRanges(mdast, text) {
+  function hide_markdown_ranges(mdast, text) {
     const ranges = []
 
     const SVELTE_SAFE_NODE_TYPES = new Set([
@@ -67,7 +67,7 @@
 
   // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function blankSvelteProtectedRanges(text, raw) {
+  function hide_svelte_ranges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
@@ -155,20 +155,20 @@
     return result
   }
 
-  async function parse(text, config) {
+  async function parse(raw, config) {
     const pipeline = unified()
       .use(string_to_mdast) // make sure to add plugins later!
       .use(mdast_to_hast)
       .use(hast_to_string)
 
-    const mdast = pipeline.parse(text) // this only calls the mdast parsing
+    const mdast = pipeline.parse(raw) // this only calls the mdast parsing
     console.log('raw text -> mdast', mdast)
 
-    const sanitized = blankMarkdownProtectedRanges(mdast, text)
+    const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const test = blankSvelteProtectedRanges(sanitized, text)
-    console.log(test)
+    const final = hide_svelte_ranges(sanitized, raw)
+    console.log(final)
   }
 
   parse(`

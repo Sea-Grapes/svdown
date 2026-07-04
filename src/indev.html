@@ -65,9 +65,9 @@
     return chars.join('')
   }
 
-  // Step 2: Parse svelte (which works now) and rebuild the mdast
+  // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function parseSvelte(text, mdast) {
+  function blankSvelteProtectedRanges(text) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
@@ -76,7 +76,7 @@
       svast,
       {},
       {
-        Text(node, { path }) {
+        Text(node, { path, next }) {
           // raw vs data: data has html entities converted to actual unicode
           // return if string is just empty whitespace.
           // Nevermind cannot do that! Since whitespace is significant.
@@ -93,25 +93,35 @@
             end: node.end,
             _text: node.raw,
           }) // potentially just push node
+          next()
         },
       },
     )
     console.log('markdownTextRanges', markdownTextRanges)
+
+    // I think only html elements (with fragment) and logic blocks need block placeholders
+    walk(
+      svast,
+      {},
+      {
+        _(node) {},
+      },
+    )
   }
 
   async function parse(text, config) {
-    const parse = unified()
+    const pipeline = unified()
       .use(string_to_mdast) // make sure to add plugins later!
       .use(mdast_to_hast)
       .use(hast_to_string)
 
-    const mdast = parse.parse(text) // this only calls the mdast parsing
+    const mdast = pipeline.parse(text) // this only calls the mdast parsing
     console.log('raw text -> mdast', mdast)
 
     const sanitized = blankMarkdownProtectedRanges(mdast, text)
     console.log('sanitized text', sanitized)
 
-    parseSvelte(sanitized, mdast)
+    const test = blankSvelteProtectedRanges(sanitized)
     // console.log(final_mdast)
   }
 

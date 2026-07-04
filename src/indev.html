@@ -71,8 +71,11 @@
   function hide_svelte_ranges(text, raw) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
-    const output_nodes = []
-    let output_text = []
+
+    const output = {
+      nodes: [],
+      text: '',
+    }
     let i = 0
 
     const INLINE_TYPES = new Set([
@@ -108,29 +111,32 @@
     }
 
     function handle_block(end) {
+      // Uses inline/text nodes as reference, flushes previous block region if any
       if (end > i) {
         const start = i
-        output_nodes.push({
+        output.nodes.push({
           type: 'block',
           start,
           end,
           value: raw.slice(start, end),
         })
+        output.text += `\n<!--svmd:block-->\n`
       }
     }
 
     function handle_node(node) {
-      // Uses inline/text nodes as reference, flushes previous block region if any
       if (node.type === 'Text' || INLINE_TYPES.has(node.type)) {
         handle_block(node.start)
 
         const type = node.type === 'Text' ? 'text' : 'inline'
-        output_nodes.push({
+        const text = raw.slice(node.start, node.end)
+        output.nodes.push({
           type,
           start: node.start,
           end: node.end,
-          value: raw.slice(node.start, node.end),
+          value: text,
         })
+        output.text += node.type === 'Text' ? text : `<!--svmd:inline-->`
 
         i = node.end
       } else {
@@ -141,7 +147,7 @@
     handle_fragment(svast.fragment)
     handle_block(raw.length)
 
-    return output_nodes
+    return output
   }
 
   async function parse(raw, config) {
@@ -157,8 +163,8 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const final = hide_svelte_ranges(sanitized, raw)
-    console.log(final)
+    const { nodes, text } = hide_svelte_ranges(sanitized, raw)
+    console.log(text)
   }
 
   parse(`

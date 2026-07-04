@@ -100,13 +100,41 @@
     console.log('markdownTextRanges', markdownTextRanges)
 
     // I think only html elements (with fragment) and logic blocks need block placeholders
-    walk(
-      svast,
-      {},
-      {
-        _(node) {},
-      },
-    )
+    // walk(
+    //   svast,
+    //   {},
+    //   {
+    //     _(node, { next }) {
+    //       console.log(node)
+    //       // next()
+    //     },
+    //   },
+    // )
+
+    const result = []
+
+    function recurse(nodes) {
+      for (const node of nodes) {
+        if (node.type == 'Text')
+          return result.push({
+            type: 'text',
+            value: node.raw,
+          })
+        else if (
+          node.type == 'RegularElement' &&
+          node.fragment.nodes.length >= 1
+        ) {
+          result.push({
+            type: 'block',
+          })
+          recurse(node.fragment.nodes)
+          result.push({
+            type: 'block',
+          })
+        } else if (node.type == 'IfBlock') {
+        } else result.push({ type: 'inline' })
+      }
+    }
   }
 
   async function parse(text, config) {
@@ -157,6 +185,7 @@ console.log('test')
 This is a test of {js} inline
 
 {#if count < 5}
+{:else}
 {/if}
 
   <MyComponent title="some *text*">

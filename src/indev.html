@@ -10,7 +10,6 @@
   </body>
 </html>
 
-<script src="unified.js"></script>
 <script type="module">
   import string_to_mdast from 'https://esm.sh/remark-parse'
   import mdast_to_hast from 'https://esm.sh/remark-rehype'
@@ -111,12 +110,13 @@
       for (const node of fragment.nodes) handle_node(node)
     }
 
+    // comments are used because micromark cannot insert nodes based on position.
     function handle_block(end) {
       // Uses inline/text nodes as reference, flushes previous block region if any
       if (end > i) {
         const start = i
+        output.text += `\n<!--svmd:block:${output.block.length}-->\n`
         output.block.push(raw.slice(start, end))
-        output.text += `\n<!--svmd:block-->\n`
       }
     }
 
@@ -128,8 +128,8 @@
         if (node.type === 'Text') {
           output.text += text
         } else {
+          output.text += `<!--svmd:inline:${output.inline.length}-->`
           output.inline.push(text)
-          output.text += `<!--svmd:inline-->`
         }
 
         i = node.end
@@ -147,7 +147,6 @@
   async function parse(raw, config) {
     const pipeline = unified()
       .use(string_to_mdast) // make sure to add plugins later!
-      .use(remark_svelte_placeholders)
       .use(mdast_to_hast, { allowDangerousHtml: true })
       .use(hast_to_string, { allowDangerousHtml: true })
 

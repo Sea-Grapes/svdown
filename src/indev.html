@@ -67,81 +67,50 @@
 
   // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function hide_svelte_ranges(text, raw) {
+  function hide_svelte_ranges(text, raw, mdast_root) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
-    const output = {
-      inline: [],
-      block: [],
-      text: '',
-    }
-    let i = 0
+    function slice_mdast(node_list, slice_start, slice_end) {
+      const result = []
 
-    const INLINE_TYPES = new Set([
-      'ExpressionTag',
-      'HtmlTag',
-      'ConstTag',
-      'DeclarationTag',
-      'DebugTag',
-      'RenderTag',
-      'AttachTag',
-      'Comment',
-    ])
-
-    function get_fragments(node) {
-      switch (node.type) {
-        case 'EachBlock':
-          return [node.body, node.fallback].filter(Boolean)
-        case 'IfBlock':
-          return [node.consequent, node.alternate].filter(Boolean)
-        case 'AwaitBlock':
-          return [node.pending, node.then, node.catch].filter(Boolean)
-        case 'KeyBlock':
-          return [node.fragment]
-        case 'SnippetBlock':
-          return [node.body]
-        default:
-          return node.fragment ? [node.fragment] : []
-      }
-    }
-
-    function handle_fragment(fragment) {
-      for (const node of fragment.nodes) handle_node(node)
-    }
-
-    // comments are used because micromark cannot insert nodes based on position.
-    function handle_block(end) {
-      // Uses inline/text nodes as reference, flushes previous block region if any
-      if (end > i) {
-        const start = i
-        output.text += `\n<!--svmd:block:${output.block.length}-->\n`
-        output.block.push(raw.slice(start, end))
-      }
-    }
-
-    function handle_node(node) {
-      if (node.type === 'Text' || INLINE_TYPES.has(node.type)) {
-        handle_block(node.start)
-        const text = raw.slice(node.start, node.end)
-
-        if (node.type === 'Text') {
-          output.text += text
-        } else {
-          output.text += `<!--svmd:inline:${output.inline.length}-->`
-          output.inline.push(text)
+      for (const node of node_list) {
+        // case 1: our node is starting before the slice start. Immediately discard it.
+        if (node.position.start.offset < slice_start) {
+          continue
         }
-
-        i = node.end
-      } else {
-        for (const fragment of get_fragments(node)) handle_fragment(fragment)
+        // now we are within the slice start.
+        // case 2: node end is within the slice, so add it.
+        if (node.position.end.offset <= slice_end) {
+          result.push(node)
+        }
       }
+
+      return result
     }
 
-    handle_fragment(svast.fragment)
-    handle_block(raw.length)
+    // temporary for testing
+    let text_nodes = []
 
-    return output
+    walk(
+      svast,
+      {},
+      {
+        Text(node, { next }) {
+          // console.log(node)
+          text_nodes.push(node)
+          next()
+        },
+      },
+    )
+
+    let test = text_nodes[0]
+    console.log(test)
+
+    let test2 = slice_mdast(mdast_root.children, test.start, test.end)
+    console.log(test2)
+
+    return svast
   }
 
   async function parse(raw, config) {
@@ -156,11 +125,11 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const output = hide_svelte_ranges(sanitized, raw)
-    console.log(output)
+    const output = hide_svelte_ranges(sanitized, raw, mdast)
+    // console.log(output)
 
-    const text = pipeline.processSync(output.text)
-    console.log(text.toString())
+    // const text = pipeline.processSync(output.text)
+    // console.log(text.toString())
   }
 
   parse(`

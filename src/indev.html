@@ -74,6 +74,10 @@
     function slice_mdast(node_list, slice_start, slice_end) {
       const result = []
 
+      // Error: this does not work because not all text value is contained in the mdast. Ideally then we want to operate on leaf nodes primarily?
+      // (Issue I encountered is end of html element, the > button thing; it turns into blockquote at position 140
+      // but the text is at 142, and svast reads it at 141, thus the blockquote node is invalid)
+      // Maybe first we should try just reparsing the markdown oh but then the issue is full text markdown doesnt work hmm.
       for (const node of node_list) {
         // case 1: our node is starting before the slice start. Immediately discard it.
         if (node.position.start.offset < slice_start) {

@@ -945,3 +945,14 @@ The actual final final plan maybe I hope
 - replace inline things with a inline private character
 
 - either swap these in the final string or in the mdast.
+
+# Final final final plan 8/9/26
+
+I'm fairly certain I can focus on rebuilding the ast.
+
+1. do the same procedure to parse svelte ast.
+2. now develop my own simple slicing algorithm.
+   - essentially travel down the tree. If the last leaf has a "value" then slice it appropriately. or if that is too hard/doesn't work just add that node.
+   - I have thought now that possibly I can _remove_ any paragraphs in the mdast for easier node manipulation. Because I think paragraphs are just top-level right? Aside from ones in ul or something but I don't think we care about those. So in theory I can remove the top-level paragraphs, and add in custom ones. Idk if this helps.
+
+3. now we should have finalized mdast and can serialize it and stuff.

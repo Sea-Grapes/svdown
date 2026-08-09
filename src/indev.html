@@ -1,13 +1,16 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Indev</title>
-  </head>
-  <body>
-    indev
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indev</title>
+</head>
+
+<body>
+  indev
+</body>
+
 </html>
 
 <script type="module">
@@ -71,43 +74,47 @@
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
 
-    let text_nodes = []
-    // const text_map = new Map()
-
-    walk(
-      svast.fragment,
-      {},
-      {
+    function get_text_ranges() {
+      const ranges = []
+      walk(svast.fragment, {}, {
         Text(node, { next }) {
-          // console.log(node)
-          text_nodes.push(raw.slice(node.start, node.end))
+          ranges.push([node.start, node.end])
           next()
         },
-      },
-    )
+      })
+      return ranges
+    }
 
-    // console.log(text_nodes)
 
-    const new_mdast = pipeline.parse(text_nodes.join('\n<!--svmd-break-->\n'))
+    function invert_ranges(ranges, len) {
+      const gaps = []
+      let i = 0
+      for (const [start, end] of ranges) {
+        if (start > i) gaps.push([i, start])
+        i = end
+      }
+      if (i < len) gaps.push([i, len])
+      return gaps
+    }
+
+
+    const text_ranges = get_text_ranges()
+    const svelte_ranges = invert_ranges(text_ranges)
+
+    const tmp = text_ranges.map(([start, end]) => raw.slice(start, end)).join('\n<!--svmd-break-->\n')
+    console.log('tmp', tmp)
+    const new_mdast = pipeline.parse(tmp)
     console.log('mdast after comments', new_mdast)
 
-    let pointer = 0
-    for (const node of svast.fragment.nodes) {
-      // console.log(node)
-      if (node.type === 'Text') {
-        continue
-      } else {
-        while (new_mdast.children[pointer]) {
-          let current = new_mdast.children[pointer]
-          if (current.type == 'html' && current.value == '<!--svmd-break-->') {
-            console.log('current', current)
-            current.value = raw.slice(node.start, node.end)
-            break
-          }
-          pointer++
-        }
+    let i = 0
+    visit(new_mdast, 'html', (node) => {
+      if (node.value == '<!--svmd-break-->') {
+        const [start, end] = svelte_ranges[i++]
+        node.value = raw.slice(start, end)
       }
-    }
+    })
+
+    console.log(new_mdast)
 
     return new_mdast
   }
@@ -182,6 +189,6 @@ content
     `)
 
   function sveltePlugin() {
-    return (tree) => {}
+    return (tree) => { }
   }
 </script>

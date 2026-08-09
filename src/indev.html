@@ -97,15 +97,15 @@
       if (node.type === 'Text') {
         continue
       } else {
-        while(new_mdast.children[pointer]) {
+        while (new_mdast.children[pointer]) {
           let current = new_mdast.children[pointer]
-          if(current.type == 'html' && current.value == '<!--svmd-break-->') {
-            break
+          console.log('current', current)
+          if (current.type == 'html' && current.value == '<!--svmd-break-->') {
             current.value = raw.slice(node.start, node.end)
+            break
           }
           pointer++
         }
-
       }
     }
 
@@ -128,7 +128,8 @@
     console.log(final_mdast)
 
     // can do runsync as well
-    const text = await pipeline.run(final_mdast)
+    const hast = await pipeline.run(final_mdast)
+    const text = pipeline.stringify(hast)
     console.log('text', text)
     // const text = pipeline.processSync(output.text)
     // console.log(text.toString())

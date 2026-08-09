@@ -91,9 +91,12 @@
         }
         // final case: start is within bounds, but end is after. Needs recursion.
         else {
-          if (node.children)
-            result.push(...slice_mdast(node.children, slice_start, slice_end))
-          else if (node.value) {
+          if (node.children) {
+            // I think I can just reassign this because svast structure never has two adjacent text nodes. It alternates
+            node.children = slice_mdast(node.children, slice_start, slice_end)
+            result.push(node)
+          } else if (node.value) {
+            result.push(node)
             // we'll figure that out next time
           }
         }

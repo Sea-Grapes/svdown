@@ -67,67 +67,29 @@
 
   // Step 2: Parse svelte (which works now)
   // @todo add handling if svparse fails
-  function hide_svelte_ranges(text, raw, mdast_root) {
+  function hide_svelte_ranges(text, raw, pipeline) {
     const svast = svparse(text, { modern: true })
     console.log('svast', svast)
-
-    function slice_mdast(node_list, slice_start, slice_end) {
-      const result = []
-
-      // Error: this does not work because not all text value is contained in the mdast. Ideally then we want to operate on leaf nodes primarily?
-      // (Issue I encountered is end of html element, the > button thing; it turns into blockquote at position 140
-      // but the text is at 142, and svast reads it at 141, thus the blockquote node is invalid)
-      // Maybe first we should try just reparsing the markdown oh but then the issue is full text markdown doesnt work hmm.
-      for (const node of node_list) {
-        // case 1: our node is starting before the slice start. Immediately discard it.
-        if (node.position.start.offset < slice_start) {
-          continue
-        }
-        // now we are within the slice start.
-        // case 2: node end is within the slice, so add it.
-        else if (node.position.end.offset <= slice_end) {
-          result.push(node)
-          // TODO: Remove node from mdast for performance boost
-        }
-        // case 3: if we overshot. Not sure if necessary but my brain tells me its necessary later.
-        else if (node.position.start.offset >= slice_end) {
-          break
-        }
-        // final case: start is within bounds, but end is after. Needs recursion.
-        else {
-          if (node.children) {
-            // I think I can just reassign this because svast structure never has two adjacent text nodes. It alternates
-            node.children = slice_mdast(node.children, slice_start, slice_end)
-            result.push(node)
-          } else if (node.value) {
-            result.push(node)
-            // we'll figure that out next time
-          }
-        }
-      }
-
-      return result
-    }
 
     // temporary for testing
     let text_nodes = []
 
     walk(
-      svast,
+      svast.fragment,
       {},
       {
         Text(node, { next }) {
           // console.log(node)
-          text_nodes.push(node)
+          text_nodes.push(raw.slice(node.start, node.end))
           next()
         },
       },
     )
 
-    for (const node of text_nodes) {
-      let test2 = slice_mdast(mdast_root.children, node.start, node.end)
-      console.log('tried slice', node, test2)
-    }
+    console.log(text_nodes)
+
+    let new_mdast = pipeline.parse(text_nodes.join('\n<!--svmd-break-->\n'))
+    console.log(new_mdast)
 
     return svast
   }
@@ -144,7 +106,7 @@
     const sanitized = hide_markdown_ranges(mdast, raw)
     console.log('sanitized text', sanitized)
 
-    const output = hide_svelte_ranges(sanitized, raw, mdast)
+    const output = hide_svelte_ranges(sanitized, raw, pipeline)
     // console.log(output)
 
     // const text = pipeline.processSync(output.text)

@@ -89,7 +89,7 @@
     // console.log(text_nodes)
 
     const new_mdast = pipeline.parse(text_nodes.join('\n<!--svmd-break-->\n'))
-    console.log(new_mdast)
+    console.log('mdast after comments', new_mdast)
 
     let pointer = 0
     for (const node of svast.fragment.nodes) {
@@ -99,8 +99,8 @@
       } else {
         while (new_mdast.children[pointer]) {
           let current = new_mdast.children[pointer]
-          console.log('current', current)
           if (current.type == 'html' && current.value == '<!--svmd-break-->') {
+            console.log('current', current)
             current.value = raw.slice(node.start, node.end)
             break
           }
@@ -125,7 +125,7 @@
     console.log('sanitized text', sanitized)
 
     const final_mdast = hide_svelte_ranges(sanitized, raw, pipeline)
-    console.log(final_mdast)
+    // console.log(final_mdast)
 
     // can do runsync as well
     const hast = await pipeline.run(final_mdast)

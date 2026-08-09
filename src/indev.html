@@ -127,12 +127,9 @@
     const final_mdast = hide_svelte_ranges(sanitized, raw, pipeline)
     // console.log(final_mdast)
 
-    // can do runsync as well
-    const hast = await pipeline.run(final_mdast)
-    const text = pipeline.stringify(hast)
-    console.log('text', text)
-    // const text = pipeline.processSync(output.text)
-    // console.log(text.toString())
+    // const hast = await pipeline.run(final_mdast) // can do runsync as well
+    // const text = pipeline.stringify(hast)
+    // console.log('text', text)
   }
 
   parse(`

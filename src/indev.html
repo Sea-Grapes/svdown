@@ -81,8 +81,21 @@
         }
         // now we are within the slice start.
         // case 2: node end is within the slice, so add it.
-        if (node.position.end.offset <= slice_end) {
+        else if (node.position.end.offset <= slice_end) {
           result.push(node)
+          // TODO: Remove node from mdast for performance boost
+        }
+        // case 3: if we overshot. Not sure if necessary but my brain tells me its necessary later.
+        else if (node.position.start.offset >= slice_end) {
+          break
+        }
+        // final case: start is within bounds, but end is after. Needs recursion.
+        else {
+          if (node.children)
+            result.push(...slice_mdast(node.children, slice_start, slice_end))
+          else if (node.value) {
+            // we'll figure that out next time
+          }
         }
       }
 
@@ -104,11 +117,10 @@
       },
     )
 
-    let test = text_nodes[0]
-    console.log(test)
-
-    let test2 = slice_mdast(mdast_root.children, test.start, test.end)
-    console.log(test2)
+    for (const node of text_nodes) {
+      let test2 = slice_mdast(mdast_root.children, node.start, node.end)
+      console.log('tried slice', node, test2)
+    }
 
     return svast
   }
@@ -151,7 +163,7 @@ console.log('test')
 <div>Test **test**</div>
 
 \`\`\`html
-<div>this should not be parsed</div>
+<div>this should not be parsed by svelte</div>
 \`\`\`
 
 \`<div></div>\`

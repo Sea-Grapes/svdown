@@ -106,19 +106,30 @@
     const new_mdast = pipeline.parse(tmp)
     console.log('mdast after comments', new_mdast)
 
-    let i = 0
-    visit(new_mdast, 'html', (node) => {
-      if (node.value == '<!--svmd-break-->') {
-        const [start, end] = svelte_ranges[i++]
-        node.value = raw.slice(start, end)
-      }
-    })
+    // let i = 0
+    // visit(new_mdast, 'html', (node) => {
+    //   if (node.value == '<!--svmd-break-->') {
+    //     const [start, end] = svelte_ranges[i++]
+    //     node.value = raw.slice(start, end)
+    //   }
+    // })
 
-    console.log(new_mdast)
+    // console.log(new_mdast)
 
     // rebuild top-level paragraphs based on svast..?
-    // i.e. svast top-level nodes are correct. 
+    // i.e. svast top-level nodes are correct.
 
+    /*
+    iterate top-level svast
+    - if it is a text node, wrap it in a paragraph
+      - since we have to parse the mdast at once, get the mdast part that corresponds to this part of the text. (We put the svast text into the mdast parse.)
+    - if it is a svelte node then:
+      - also wrap it in a paragraph?
+      - if it is a svelte normal component, we must get the wrapping html
+      - or maybe we can just use the comments in the mdast and swap them in idfk
+      - I think we can just take the sections from the mdast 
+
+    */
     return new_mdast
   }
 

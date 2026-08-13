@@ -956,3 +956,19 @@ I'm fairly certain I can focus on rebuilding the ast.
    - I have thought now that possibly I can _remove_ any paragraphs in the mdast for easier node manipulation. Because I think paragraphs are just top-level right? Aside from ones in ul or something but I don't think we care about those. So in theory I can remove the top-level paragraphs, and add in custom ones. Idk if this helps.
 
 3. now we should have finalized mdast and can serialize it and stuff.
+
+# 8/13/26
+
+ast tests
+
+svelte
+  text
+
+svelte
+  text
+svelte
+  text
+svelte
+
+So we need a tree like
+- svelte has text and can 

@@ -97,14 +97,21 @@
       return gaps
     }
 
+    walk(svast.fragment, {}, {
+      _(node, { next }) {
+        console.log(node)
+        next()
+      }
+    })
 
-    const text_ranges = get_text_ranges()
-    const svelte_ranges = invert_ranges(text_ranges)
 
-    const tmp = text_ranges.map(([start, end]) => raw.slice(start, end)).join('\n<!--svmd-break-->\n')
-    console.log('tmp', tmp)
-    const new_mdast = pipeline.parse(tmp)
-    console.log('mdast after comments', new_mdast)
+    // const text_ranges = get_text_ranges()
+    // const svelte_ranges = invert_ranges(text_ranges)
+
+    // const tmp = text_ranges.map(([start, end]) => raw.slice(start, end)).join('\n<!--svmd-break-->\n')
+    // console.log('tmp', tmp)
+    // const new_mdast = pipeline.parse(tmp)
+    // console.log('mdast after comments', new_mdast)
 
     // let i = 0
     // visit(new_mdast, 'html', (node) => {
@@ -129,6 +136,7 @@
       - or maybe we can just use the comments in the mdast and swap them in idfk
       - I think we can just take the sections from the mdast 
 
+    might be easier to handle without the parsing at once support, for first attempt..?
     */
     return new_mdast
   }

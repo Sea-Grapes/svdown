@@ -97,12 +97,20 @@
       return gaps
     }
 
-    walk(svast.fragment, {}, {
-      _(node, { next }) {
-        console.log(node)
-        next()
+    // walk(svast.fragment, {}, {
+    //   _(node, { next }) {
+    //     console.log(node)
+    //     // next()
+    //   }
+    // })
+
+    function fragment_to_mdast(fragment) {
+      for(const node of fragment.nodes) {
+        
       }
-    })
+    }
+
+    let test = fragment_to_mdast(svast.fragment)
 
 
     // const text_ranges = get_text_ranges()
@@ -138,7 +146,7 @@
 
     might be easier to handle without the parsing at once support, for first attempt..?
     */
-    return new_mdast
+    // return new_mdast
   }
 
   async function parse(raw, config) {
